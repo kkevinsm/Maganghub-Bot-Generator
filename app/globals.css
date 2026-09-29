@@ -1,26 +1,179 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* Color Palette - Warm professional tones */
+  --color-primary-50: #fef7ed;
+  --color-primary-100: #fdecd4;
+  --color-primary-200: #fbd5a8;
+  --color-primary-300: #f8b870;
+  --color-primary-400: #f59337;
+  --color-primary-500: #f37a15;
+  --color-primary-600: #e4600b;
+  --color-primary-700: #bd480b;
+  --color-primary-800: #963910;
+  --color-primary-900: #793110;
+
+  --color-accent-50: #eef7ff;
+  --color-accent-100: #d9ecff;
+  --color-accent-200: #bcdfff;
+  --color-accent-300: #8ecbff;
+  --color-accent-400: #59adff;
+  --color-accent-500: #338bfc;
+  --color-accent-600: #1d6df1;
+  --color-accent-700: #1556de;
+  --color-accent-800: #1847b4;
+  --color-accent-900: #193e8e;
+
+  --color-surface-50: #f8f9fb;
+  --color-surface-100: #f0f2f6;
+  --color-surface-200: #e4e7ed;
+  --color-surface-300: #cdd3dd;
+  --color-surface-400: #b1b9c8;
+  --color-surface-500: #969fb3;
+  --color-surface-600: #7f879e;
+  --color-surface-700: #6f768b;
+  --color-surface-800: #5d6272;
+  --color-surface-900: #4d515e;
+
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+  --color-warning-500: #f59e0b;
+
+  /* Typography */
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+
+  /* Animations */
+  --animate-fade-in: fade-in 0.4s ease-out;
+  --animate-slide-up: slide-up 0.5s ease-out;
+  --animate-scale-in: scale-in 0.3s ease-out;
+  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+  --animate-shimmer: shimmer 2s linear infinite;
+  --animate-bounce-in: bounce-in 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --animate-count-up: count-up 0.3s ease-out;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(243, 122, 21, 0.2); }
+  50% { box-shadow: 0 0 20px 4px rgba(243, 122, 21, 0.15); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes bounce-in {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.05); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-300);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-surface-400);
+}
+
+/* Focus ring utility */
+.focus-ring {
+  @apply outline-none ring-2 ring-primary-400 ring-offset-2 ring-offset-white;
+}
+
+/* Glass panel effect for light mode */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--color-primary-600), var(--color-accent-600));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Card hover effect */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.15);
+}
+
+/* Shimmer loading skeleton */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-100) 25%,
+    var(--color-surface-200) 50%,
+    var(--color-surface-100) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+/* Typing cursor animation */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.typing-cursor::after {
+  content: '|';
+  animation: blink 1s step-end infinite;
+  color: var(--color-primary-500);
+  font-weight: bold;
+}
+
+/* Hide Next.js dev indicator button */
+nextjs-portal,
+[data-nextjs-dev-indicator],
+[data-nextjs-toast],
+#nextjs-dev-indicator {
+  display: none !important;
 }
