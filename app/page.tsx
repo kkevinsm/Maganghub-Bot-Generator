@@ -60,11 +60,10 @@ function CharBadge({ count, min = 100 }: { count: number; min?: number }) {
   const isValid = count >= min;
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold transition-all duration-300 animate-count-up ${
-        isValid
-          ? "bg-green-50 text-green-700 border border-green-200"
-          : "bg-red-50 text-red-600 border border-red-200"
-      }`}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold transition-all duration-300 animate-count-up ${isValid
+        ? "bg-green-50 text-green-700 border border-green-200"
+        : "bg-red-50 text-red-600 border border-red-200"
+        }`}
     >
       {isValid ? (
         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -520,14 +519,14 @@ export default function Home() {
   const allValid =
     status === "Hadir"
       ? Boolean(
-          report &&
-            (report.uraian_aktivitas || "").length >= 100 &&
-            (report.pembelajaran || "").length >= 100 &&
-            (report.kendala || "").length >= 100
-        )
+        report &&
+        (report.uraian_aktivitas || "").length >= 100 &&
+        (report.pembelajaran || "").length >= 100 &&
+        (report.kendala || "").length >= 100
+      )
       : status === "Tidak Hadir Dengan Keterangan"
-      ? Boolean(report && (report.alasan_tidak_hadir || "").length >= 100)
-      : true; // Tanpa keterangan doesn't require written report
+        ? Boolean(report && (report.alasan_tidak_hadir || "").length >= 100)
+        : true; // Tanpa keterangan doesn't require written report
 
   const wibToday = getWibDateString();
 
@@ -567,11 +566,10 @@ export default function Home() {
             {/* API Key Button */}
             <button
               onClick={() => setShowApiKeyModal(true)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border cursor-pointer ${
-                apiKey
-                  ? "bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
-                  : "bg-surface-50 border-surface-200 text-surface-600 hover:bg-surface-100"
-              }`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border cursor-pointer ${apiKey
+                ? "bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                : "bg-surface-50 border-surface-200 text-surface-600 hover:bg-surface-100"
+                }`}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
@@ -624,11 +622,10 @@ export default function Home() {
                   <button
                     key={opt.key}
                     onClick={() => handleStatusChange(opt.key)}
-                    className={`w-full py-2.5 px-3.5 rounded-xl text-xs font-semibold border-2 transition-all duration-200 cursor-pointer flex items-center justify-between text-left ${
-                      status === opt.key
-                        ? opt.activeClass
-                        : "bg-white border-surface-200 text-surface-700 hover:border-surface-300 hover:bg-surface-50"
-                    }`}
+                    className={`w-full py-2.5 px-3.5 rounded-xl text-xs font-semibold border-2 transition-all duration-200 cursor-pointer flex items-center justify-between text-left ${status === opt.key
+                      ? opt.activeClass
+                      : "bg-white border-surface-200 text-surface-700 hover:border-surface-300 hover:bg-surface-50"
+                      }`}
                   >
                     <span>{opt.label}</span>
                     {status === opt.key ? (
@@ -672,7 +669,7 @@ export default function Home() {
                   value={aktivitas}
                   onChange={(e) => setAktivitas(e.target.value)}
                   rows={7}
-                  placeholder={`- briefing pagi proyek X\n- setup database relasional\n- fix bug login page\n- diskusi dengan mentor soal arsitektur`}
+                  placeholder={`- briefing proyek X\n- setup database\n- diskusi dengan mentor tentang SDLC\n- tidak ada kesulitan/lancar saja hari ini`}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-surface-200 text-sm text-surface-800 bg-white placeholder:text-surface-400 resize-none focus:outline-none focus:ring-2 focus:ring-primary-400/40 focus:border-primary-400 hover:border-surface-300 transition-all duration-200 font-mono leading-relaxed"
                 />
               </section>
@@ -715,26 +712,25 @@ export default function Home() {
                 id="generate-button"
                 onClick={handleGenerate}
                 disabled={loading || !aktivitas.trim()}
-                className={`w-full py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 ${
-                  loading
-                    ? "bg-surface-200 text-surface-400 cursor-wait"
-                    : !aktivitas.trim()
+                className={`w-full px-4 py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 ${loading
+                  ? "bg-surface-200 text-surface-400 cursor-wait"
+                  : !aktivitas.trim()
                     ? "bg-surface-100 text-surface-400 cursor-not-allowed border border-surface-200"
                     : status === "Tidak Hadir Dengan Keterangan"
-                    ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-200 hover:shadow-xl hover:shadow-amber-300 hover:-translate-y-0.5 active:translate-y-0 animate-pulse-glow"
-                    : "bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg shadow-primary-200 hover:shadow-xl hover:shadow-primary-300 hover:-translate-y-0.5 active:translate-y-0 animate-pulse-glow"
-                }`}
+                      ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-200 hover:shadow-xl hover:shadow-amber-300 hover:-translate-y-0.5 active:translate-y-0 animate-pulse-glow"
+                      : "bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg shadow-primary-200 hover:shadow-xl hover:shadow-primary-300 hover:-translate-y-0.5 active:translate-y-0 animate-pulse-glow"
+                  }`}
               >
                 {loading ? (
                   <>
-                    <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 animate-spin shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                     AI Sedang Menulis...
                   </>
                 ) : (
                   <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
                     {status === "Tidak Hadir Dengan Keterangan"
@@ -935,14 +931,14 @@ export default function Home() {
             {/* 2. Kirim Otomatis ke Monev Card (Fase 2) */}
             <div className="bg-white rounded-2xl border border-surface-200 shadow-sm p-5 space-y-4">
               {/* Header section */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-accent-50 text-accent-600 flex items-center justify-center">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-accent-50 text-accent-600 flex items-center justify-center shrink-0">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <h2 className="text-sm font-bold text-surface-800">
                       Kirim Otomatis ke Monev
                     </h2>
@@ -953,10 +949,10 @@ export default function Home() {
                 </div>
 
                 {/* Account badge */}
-                <div>
+                <div className="shrink-0">
                   {kemnakerToken ? (
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-green-50 text-green-700 border border-green-200">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9.5px] sm:text-[11px] font-bold bg-green-50 text-green-700 border border-green-200 whitespace-nowrap">
                         <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                         TERHUBUNG
                       </span>
@@ -969,8 +965,9 @@ export default function Home() {
                       </button>
                     </div>
                   ) : (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-surface-100 text-surface-500 border border-surface-200">
-                      BELUM LOGIN
+                    <span className="inline-flex flex-col sm:flex-row items-center justify-center px-2.5 py-1 rounded-2xl sm:rounded-full text-[9px] sm:text-[11px] font-medium bg-surface-100 text-surface-500 border border-surface-200 text-center leading-tight">
+                      <span>BELUM</span>
+                      <span className="sm:ml-1">LOGIN</span>
                     </span>
                   )}
                 </div>
@@ -1042,11 +1039,10 @@ export default function Home() {
               {/* Submit result feedback */}
               {submitResult && (
                 <div
-                  className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 animate-slide-up ${
-                    submitResult.ok
-                      ? "bg-green-50 border-green-200 text-green-800"
-                      : "bg-red-50 border-red-200 text-red-800"
-                  }`}
+                  className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 animate-slide-up ${submitResult.ok
+                    ? "bg-green-50 border-green-200 text-green-800"
+                    : "bg-red-50 border-red-200 text-red-800"
+                    }`}
                 >
                   {submitResult.ok ? (
                     <svg className="w-4 h-4 text-green-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1069,37 +1065,45 @@ export default function Home() {
                     submitLoading ||
                     (Boolean(kemnakerToken) && (!isConfirmed || (status !== "Tidak Hadir Tanpa Keterangan" && !report)))
                   }
-                  className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
-                    !kemnakerToken
-                      ? "bg-surface-800 hover:bg-surface-900 text-white shadow-md"
-                      : submitLoading
+                  className={`w-full px-4 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center cursor-pointer ${!kemnakerToken
+                    ? "bg-surface-800 hover:bg-surface-900 text-white shadow-md"
+                    : submitLoading
                       ? "bg-surface-200 text-surface-400 cursor-wait"
                       : !isConfirmed || (status !== "Tidak Hadir Tanpa Keterangan" && !report)
-                      ? "bg-surface-100 text-surface-400 cursor-not-allowed border border-surface-200"
-                      : "bg-gradient-to-r from-accent-600 to-primary-600 hover:from-accent-700 hover:to-primary-700 text-white shadow-lg shadow-accent-200"
-                  }`}
+                        ? "bg-surface-100 text-surface-400 cursor-not-allowed border border-surface-200"
+                        : "bg-gradient-to-r from-accent-600 to-primary-600 hover:from-accent-700 hover:to-primary-700 text-white shadow-lg shadow-accent-200"
+                    }`}
                 >
                   {submitLoading ? (
-                    <>
-                      <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      Mengirim ke Monev Kemnaker...
-                    </>
+                    <span className="text-center leading-snug">
+                      <span className="inline-flex items-center gap-2 align-middle">
+                        <svg className="w-4 h-4 animate-spin shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        <span>Mengirim</span>
+                      </span>{" "}
+                      ke Monev Kemnaker...
+                    </span>
                   ) : !kemnakerToken ? (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                      </svg>
-                      Hubungkan Akun Kemnaker untuk Mengirim
-                    </>
+                    <span className="text-center leading-snug">
+                      <span className="inline-flex items-center gap-2 align-middle">
+                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                        </svg>
+                        <span>Hubungkan</span>
+                      </span>{" "}
+                      Akun Kemnaker untuk Mengirim
+                    </span>
                   ) : (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                      </svg>
-                      Simpan dan Kirim ke Monev
-                    </>
+                    <span className="text-center leading-snug">
+                      <span className="inline-flex items-center gap-2 align-middle">
+                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                        <span>Simpan</span>
+                      </span>{" "}
+                      dan Kirim ke Monev
+                    </span>
                   )}
                 </button>
 
