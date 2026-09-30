@@ -3,15 +3,12 @@ import { type NextRequest } from "next/server";
 export const dynamic = "force-dynamic";
 
 /**
- * Direct attendance submission to Monev Kemnaker API — no third-party proxy.
- *
- * Endpoint: POST /api/v1/attendances/with-daily-log
- * Auth: Bearer token from the OAuth login flow
+ * Endpoint pengiriman absensi Monev Kemnaker.
+ * Meneruskan request ke backend proxy mandiri Hostinger (api.mobogen.online)
+ * untuk menghindari blokir datacenter Cloudflare dari server Vercel.
  */
 
-const MONEV_API = "https://monev-api.maganghub.kemnaker.go.id/api/v1";
-const UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+const DEFAULT_PROXY_BASE = "https://api.mobogen.online";
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,33 +68,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ── Build the attendance payload for Monev API ─────────────────────
-    const monevPayload: Record<string, unknown> = {
-      date: payload.date,
-      status: payload.status,
+    const proxyBase = process.env.KEMNAKER_PROXY_BASE_URL || DEFAULT_PROXY_BASE;
+    const submitUrl = `${proxyBase}/api/kemnaker/submit-attendance`;
+
+    const clientIp =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("x-real-ip");
+
+    const upstreamHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
     };
 
-    if (payload.status === "PRESENT") {
-      monevPayload.activity_log = payload.activity_log || "";
-      monevPayload.lesson_learned = payload.lesson_learned || "";
-      monevPayload.obstacles = payload.obstacles || "";
-    } else if (payload.status === "ON_LEAVE") {
-      monevPayload.activity_log =
-        payload.leave_reason || payload.activity_log || "";
+    if (clientIp) {
+      upstreamHeaders["X-Forwarded-For"] = clientIp;
     }
-
-    // ── Submit directly to Monev API ──────────────────────────────────
-    const submitUrl = `${MONEV_API}/attendances/with-daily-log`;
 
     const upstreamRes = await fetch(submitUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        Authorization: `Bearer ${token}`,
-        "User-Agent": UA,
-      },
-      body: JSON.stringify(monevPayload),
+      headers: upstreamHeaders,
+      body: JSON.stringify({ token, payload }),
     });
 
     const data = await upstreamRes.json().catch(() => null);
@@ -106,38 +97,27 @@ export async function POST(request: NextRequest) {
       return Response.json(
         {
           error:
-            data?.message ||
-            data?.error ||
-            "Sesi Monev telah berakhir atau token kedaluwarsa. Silakan login ulang.",
+            data?.error || "Sesi Monev telah berakhir atau token kedaluwarsa. Silakan login ulang.",
         },
         { status: 401 }
       );
     }
 
-    if (!upstreamRes.ok || !data) {
+    if (!upstreamRes.ok || !data || !data.success) {
       const errorMessage =
-        data?.message ||
-        data?.error ||
-        `Pengiriman absensi gagal (HTTP ${upstreamRes.status}).`;
-      return Response.json(
-        { error: errorMessage },
-        { status: upstreamRes.status || 500 }
-      );
+        data?.error || `Pengiriman absensi gagal (HTTP ${upstreamRes.status}).`;
+      return Response.json({ error: errorMessage }, { status: upstreamRes.status || 500 });
     }
 
     return Response.json({
       success: true,
-      message:
-        data.message ||
-        "Laporan absensi berhasil dikirim ke Monev Kemnaker.",
-      data: data.data || data || null,
+      message: data.message || "Laporan absensi berhasil dikirim ke Monev Kemnaker.",
+      data: data.data || null,
     });
   } catch (error: unknown) {
     console.error("Kemnaker submit error:", error);
     const message =
-      error instanceof Error
-        ? error.message
-        : "Terjadi kesalahan saat mengirim absensi ke Monev.";
+      error instanceof Error ? error.message : "Terjadi kesalahan saat mengirim absensi ke Monev.";
     return Response.json({ error: message }, { status: 500 });
   }
 }
