@@ -31,6 +31,9 @@ const STATUS_MAP: Record<Status, "PRESENT" | "ON_LEAVE" | "ABSENT"> = {
   "Tidak Hadir Tanpa Keterangan": "ABSENT",
 };
 
+const KEMNAKER_PROXY_BASE =
+  process.env.NEXT_PUBLIC_KEMNAKER_PROXY_BASE_URL || "https://absen-hub.web.id";
+
 // ─── Helper Functions ────────────────────────────────────────────────────────
 function isTokenExpired(token: string): boolean {
   try {
@@ -271,7 +274,7 @@ export default function Home() {
     setKemnakerLoginError("");
 
     try {
-      const res = await fetch("/api/kemnaker/login", {
+      const res = await fetch(`${KEMNAKER_PROXY_BASE}/api/kemnaker/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -441,7 +444,7 @@ export default function Home() {
         payloadData.activity_log = leaveText; // Fallback compatibility
       }
 
-      const res = await fetch("/api/kemnaker/submit", {
+      const res = await fetch(`${KEMNAKER_PROXY_BASE}/api/kemnaker/submit-attendance`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
