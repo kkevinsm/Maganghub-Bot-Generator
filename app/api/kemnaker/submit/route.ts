@@ -2,7 +2,7 @@ import { type NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const DEFAULT_PROXY_BASE = "https://absen-hub.web.id";
+const DEFAULT_PROXY_BASE = "https://mobogen.online";
 
 export async function POST(request: NextRequest) {
   try {
