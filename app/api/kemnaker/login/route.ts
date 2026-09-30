@@ -19,13 +19,23 @@ export async function POST(request: NextRequest) {
     const proxyBase = process.env.KEMNAKER_PROXY_BASE_URL || DEFAULT_PROXY_BASE;
     const loginUrl = `${proxyBase}/api/kemnaker/login`;
 
+    const clientIp =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("x-real-ip");
+
+    const upstreamHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    };
+
+    if (clientIp) {
+      upstreamHeaders["X-Forwarded-For"] = clientIp;
+    }
+
     const upstreamRes = await fetch(loginUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-      },
+      headers: upstreamHeaders,
       body: JSON.stringify({
         username: username.trim(),
         password,
