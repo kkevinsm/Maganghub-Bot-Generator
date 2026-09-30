@@ -44,35 +44,45 @@ Jika muncul respons `{"ok":true,"result":true,"description":"Webhook was set"}`,
 
 ---
 
-## 💬 3 Macam Opsi Presensi di Telegram Bot
+## ✨ Fitur Unggulan Mobogen Bot:
 
-1. **🟢 Opsi 1: Hadir (PRESENT)**
-   - Cukup kirim poin-poin kegiatan harian Anda (atau ketik `/hadir <poin>`):
-     ```text
-     Hari ini slicing UI dashboard, integrasi Bot Telegram, dan fixing bug CORS
-     ```
-   - AI menyusun 3 narasi formal (Uraian Aktivitas, Pembelajaran, Kendala masing-masing $\ge$ 100 karakter).
-   - Klik tombol **[ 🚀 Kirim Absensi Hadir ]**.
+### 1. 📱 Telegram Mini App (In-App Editor Interaktif)
+- Klik tombol **`[ ✏️ Buka Editor Interaktif ]`** untuk membuka form pengeditan visual langsung di dalam aplikasi Telegram tanpa membuka browser eksternal.
+- Real-time character counter (`count/100`), generator AI instan, dan tombol submit langsung ke Kemnaker.
 
-2. **🟡 Opsi 2: Tidak Hadir Dengan Keterangan (ON_LEAVE)**
-   - Ketik `/izin <alasan>` (atau pilih menu Izin):
-     ```text
-     /izin Sakit demam dan berobat ke klinik dokter
-     ```
-   - AI menyusun narasi keterangan izin resmi ($\ge$ 100 karakter).
-   - Klik tombol **[ 🚀 Kirim Keterangan Izin ]**.
+### 2. 💡 Role-based Smart Suggestions (Inspirasi Kegiatan Harian)
+- Atur posisi magang Anda via `/role` (Frontend, Backend, UI/UX, Data, PM/QA, Marketing, HR, Umum).
+- Dapatkan 3 rekomendasi ide kegiatan harian yang relevan dengan tugas divisi Anda via tombol **`[ 💡 Ide Kegiatan ]`** atau `/ide`.
 
-3. **🔴 Opsi 3: Tidak Hadir Tanpa Keterangan (ABSENT / Alpha)**
-   - Ketik `/alpha` atau klik menu **[ 🔴 Tanpa Keterangan ]**.
-   - Klik konfirmasi **[ 🚀 Ya, Kirim Tanpa Keterangan ]** untuk mengirim status tidak hadir tanpa lampiran/alasan ke Kemnaker.
+### 3. 🛡️ Auto-Submit Safeguard (Pengingat Draft Tertunda)
+- Jika Anda telah membuat draft laporan tapi lupa menekan tombol konfirmasi kirim dalam $\ge$ 30 menit, bot akan otomatis mengirimkan notifikasi pengingat agar absensi Anda tidak terlewat sebelum pukul 23:59 WIB.
+
+### 4. ⏰ Pengingat Sore Otomatis (16:30 WIB)
+- Bot otomatis menyapa Anda setiap hari Senin–Jumat pukul 16:30 WIB untuk mengisi laporan presensi harian.
+
+---
+
+## 💬 3 Macam Opsi Presensi:
+
+1. **🟢 Hadir (PRESENT)**
+   - Chat ringkasan kegiatan (atau `/hadir <poin>`), AI membuat 3 bagian narasi formal (Uraian, Pembelajaran, Kendala $\ge$ 100 char), klik **Kirim Absensi Hadir**.
+
+2. **🟡 Tidak Hadir Dengan Keterangan (ON_LEAVE)**
+   - Ketik `/izin <alasan>`, AI membuat narasi izin formal $\ge$ 100 char, klik **Kirim Keterangan Izin**.
+
+3. **🔴 Tidak Hadir Tanpa Keterangan (ABSENT)**
+   - Ketik `/alpha` atau klik menu Tanpa Keterangan, klik konfirmasi untuk kirim status Alpha resmi ke Kemnaker.
 
 ---
 
 ## 📋 Daftar Perintah Bot:
-- `/start` atau `/help` atau `/menu` : Menampilkan menu utama & 3 opsi presensi
+- `/start` / `/help` / `/menu` : Menu utama & 3 opsi presensi
 - `/login <email> <password>` : Menghubungkan akun SIAPkerja Kemnaker
-- `/status` : Cek status koneksi akun & tanggal hari ini
+- `/status` : Cek status akun, posisi, pengingat, & draft aktif
+- `/role` : Memilih posisi magang (Frontend, UI/UX, Data, dll)
+- `/ide` : Menampilkan rekomendasi ide kegiatan harian
 - `/hadir <kegiatan>` : Absen hadir
 - `/izin <alasan>` : Absen izin tidak hadir
 - `/alpha` : Absen tidak hadir tanpa keterangan
+- `/reminder on` / `off` : Mengatur pengingat 16:30 WIB
 - `/logout` : Menghapus data akun dari bot

@@ -20,6 +20,9 @@ export interface TelegramInlineKeyboardButton {
   text: string;
   callback_data?: string;
   url?: string;
+  web_app?: {
+    url: string;
+  };
 }
 
 export interface TelegramInlineKeyboardMarkup {
@@ -32,6 +35,10 @@ export interface TelegramMessage {
   chat: TelegramChat;
   date: number;
   text?: string;
+  web_app_data?: {
+    data: string;
+    button_text: string;
+  };
   reply_markup?: TelegramInlineKeyboardMarkup;
 }
 
@@ -57,6 +64,8 @@ export interface UserDraftReport {
   kendala?: string;
   alasan_tidak_hadir?: string;
   rawInput?: string;
+  createdAt?: number;
+  safeguardNudgeSent?: boolean;
 }
 
 export interface UserAccount {
@@ -66,6 +75,7 @@ export interface UserAccount {
   username?: string; // Encrypted Kemnaker Email/NIK/No HP
   password?: string; // Encrypted Kemnaker Password
   token?: string; // Cached token
+  role?: string; // 'frontend' | 'backend' | 'uiux' | 'data' | 'pm_qa' | 'marketing' | 'hr' | 'general'
   draftReport?: UserDraftReport | null;
   step?:
     | "idle"
@@ -73,9 +83,11 @@ export interface UserAccount {
     | "awaiting_login_password"
     | "awaiting_hadir_input"
     | "awaiting_izin_input"
+    | "awaiting_role_selection"
     | "awaiting_confirm";
   tempLoginEmail?: string;
   reminderEnabled?: boolean;
+  lastSafeguardNudge?: number;
   createdAt?: string;
   updatedAt?: string;
 }

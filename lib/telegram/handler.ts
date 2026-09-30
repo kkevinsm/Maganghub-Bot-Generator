@@ -1,9 +1,10 @@
 /**
  * Main Telegram Bot Conversation Handler untuk Mobogen
- * Mendukung 3 Macam Opsi Presensi Monev MagangHub:
- * 1. Hadir (PRESENT)
- * 2. Tidak Hadir Dengan Keterangan (ON_LEAVE)
- * 3. Tidak Hadir Tanpa Keterangan (ABSENT)
+ * Fitur:
+ * 1. 3 Macam Opsi Presensi Monev (Hadir, Izin, Alpha)
+ * 2. Telegram Mini App (In-App Editor Interaktif)
+ * 3. Role-based Smart Suggestions (Rekomendasi Kegiatan Sesuai Posisi)
+ * 4. Auto-Submit Safeguard Tracking
  */
 
 import { telegram } from "./client";
@@ -16,6 +17,7 @@ import {
 } from "./store";
 import { generateMonevFromText } from "./ai";
 import { loginKemnaker, submitAttendanceToKemnaker } from "./kemnaker";
+import { ROLES, getRoleSuggestions } from "./suggestions";
 import { TelegramUpdate, UserAccount, UserDraftReport } from "./types";
 
 function getTodayDateString(): string {
@@ -29,6 +31,17 @@ function getTodayDateString(): string {
   return formatter.format(now);
 }
 
+function getAppBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return "https://mobogen.vercel.app";
+}
+
 export async function handleTelegramUpdate(update: TelegramUpdate) {
   // 1. Handle Callback Query (Tombol Inline yang diklik user)
   if (update.callback_query) {
@@ -37,7 +50,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     const data = cb.data || "";
     const user = getUser(chatId);
 
-    // Answer callback query immediately to stop the loading animation
+    // Answer callback query immediately
     await telegram.answerCallbackQuery(cb.id);
 
     // Menu Action Buttons
@@ -46,7 +59,15 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       saveUser(user);
       return telegram.sendMessage(
         chatId,
-        "🟢 *Presensi: Hadir*\n\nSilakan kirimkan ringkasan / poin-poin kegiatan harian Anda (misal: _'Slicing UI dashboard dan testing API'_).\n\nAI Mobogen akan menyusun 3 bagian narasi formal (Uraian, Pembelajaran, Kendala minimal 100 karakter)."
+        "🟢 *Presensi: Hadir*\n\nSilakan kirimkan ringkasan kegiatan harian Anda (misal: _'Slicing UI dashboard dan testing API'_).\n\n_Atau klik tombol di bawah jika ingin melihat rekomendasi ide kegiatan sesuai posisimu:_",
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "💡 Rekomendasi Ide Kegiatan", callback_data: "SUGGEST_IDEAS" }],
+              [{ text: "✏️ Buka Editor Interaktif", web_app: { url: `${getAppBaseUrl()}/editor?chatId=${chatId}` } }],
+            ],
+          },
+        }
       );
     }
 
@@ -88,25 +109,50 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       );
     }
 
+    // Role Selection Handlers
+    if (data.startsWith("SET_ROLE_")) {
+      const roleId = data.replace("SET_ROLE_", "");
+      user.role = roleId;
+      saveUser(user);
+      const roleInfo = ROLES[roleId] || ROLES.general;
+
+      return telegram.sendMessage(
+        chatId,
+        `✅ *Posisi Magang Diatur:* ${roleInfo.icon} *${roleInfo.name}*\n\nSekarang Anda dapat meminta ide rekomendasi kegiatan harian otomatis sesuai posisi ini!`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "💡 Lihat Rekomendasi Ide Kegiatan", callback_data: "SUGGEST_IDEAS" }],
+              [{ text: "📋 Kembali ke Menu", callback_data: "BTN_MENU" }],
+            ],
+          },
+        }
+      );
+    }
+
+    if (data === "SUGGEST_IDEAS" || data === "SHOW_ROLES") {
+      return sendRoleSuggestionsMenu(user);
+    }
+
+    if (data.startsWith("USE_SUGGESTION_")) {
+      const index = Number(data.replace("USE_SUGGESTION_", ""));
+      const suggestions = (ROLES[user.role || "general"] || ROLES.general).suggestions;
+      const selectedPrompt = suggestions[index] || suggestions[0];
+      return handleGenerateHadir(user, selectedPrompt);
+    }
+
     if (data === "TOGGLE_REMINDER") {
       user.reminderEnabled = user.reminderEnabled === false ? true : false;
       saveUser(user);
       const isEnabled = user.reminderEnabled;
+      const text = isEnabled
+        ? "🔔 *Pengingat Harian (16:30 WIB) Diaktifkan!*\n\nAnda akan menerima notifikasi presensi otomatis setiap sore."
+        : "🔕 *Pengingat Harian (16:30 WIB) Dinonaktifkan.*";
+
       if (cb.message?.message_id) {
-        return telegram.editMessageText(
-          chatId,
-          cb.message.message_id,
-          isEnabled
-            ? "🔔 *Pengingat Harian (16:30 WIB) Diaktifkan!*\n\nAnda akan menerima notifikasi presensi otomatis setiap sore."
-            : "🔕 *Pengingat Harian (16:30 WIB) Dinonaktifkan.*"
-        );
+        return telegram.editMessageText(chatId, cb.message.message_id, text);
       }
-      return telegram.sendMessage(
-        chatId,
-        isEnabled
-          ? "🔔 *Pengingat Harian (16:30 WIB) Diaktifkan!*"
-          : "🔕 *Pengingat Harian (16:30 WIB) Dinonaktifkan.*"
-      );
+      return telegram.sendMessage(chatId, text);
     }
 
     if (data === "BTN_LOGIN") {
@@ -154,6 +200,16 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     return sendHelpMenu(user);
   }
 
+  // Command: /role (Pilih Posisi Magang)
+  if (lowerText === "/role" || lowerText === "/posisi") {
+    return sendRoleSelectionMenu(user);
+  }
+
+  // Command: /ide atau /suggest (Ide Kegiatan Harian)
+  if (lowerText === "/ide" || lowerText === "/suggest" || lowerText === "/rekomendasi") {
+    return sendRoleSuggestionsMenu(user);
+  }
+
   // Command: /login
   if (lowerText === "/login") {
     user.step = "awaiting_login_email";
@@ -196,13 +252,14 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
 
     return telegram.sendMessage(
       chatId,
-      `🎉 *Berhasil Terhubung!*\n\nAkun atas nama *${user.name}* telah aktif dan siap.\n\nSekarang Anda cukup mengirimkan poin kegiatan harian atau memilih menu presensi! 🚀`,
+      `🎉 *Berhasil Terhubung!*\n\nAkun atas nama *${user.name}* telah aktif dan siap.\n\nSilakan pilih opsi presensi Anda di bawah ini: 🚀`,
       {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "🟢 Absen Hadir", callback_data: "MENU_HADIR" }],
-            [{ text: "🟡 Tidak Hadir Dengan Keterangan (Izin)", callback_data: "MENU_IZIN" }],
-            [{ text: "🔴 Tidak Hadir Tanpa Keterangan", callback_data: "MENU_ABSENT" }],
+            [{ text: "🟢 1. Absen Hadir", callback_data: "MENU_HADIR" }],
+            [{ text: "🟡 2. Izin (Dengan Keterangan)", callback_data: "MENU_IZIN" }],
+            [{ text: "🔴 3. Tanpa Keterangan (Alpha)", callback_data: "MENU_ABSENT" }],
+            [{ text: "✏️ Buka Editor Interaktif", web_app: { url: `${getAppBaseUrl()}/editor?chatId=${chatId}` } }],
           ],
         },
       }
@@ -251,9 +308,10 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "🟢 Absen Hadir", callback_data: "MENU_HADIR" }],
-            [{ text: "🟡 Tidak Hadir Dengan Keterangan (Izin)", callback_data: "MENU_IZIN" }],
-            [{ text: "🔴 Tidak Hadir Tanpa Keterangan", callback_data: "MENU_ABSENT" }],
+            [{ text: "🟢 1. Absen Hadir", callback_data: "MENU_HADIR" }],
+            [{ text: "🟡 2. Izin (Dengan Keterangan)", callback_data: "MENU_IZIN" }],
+            [{ text: "🔴 3. Tanpa Keterangan (Alpha)", callback_data: "MENU_ABSENT" }],
+            [{ text: "✏️ Buka Editor Interaktif", web_app: { url: `${getAppBaseUrl()}/editor?chatId=${chatId}` } }],
           ],
         },
       }
@@ -284,11 +342,12 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       draftStatus = `\n\n📝 *Draft Tersimpan*: ${statusLabel} (Siap dikirim)`;
     }
 
+    const currentRole = ROLES[user.role || "general"] || ROLES.general;
     const reminderStatus = user.reminderEnabled !== false ? "✅ Aktif (Setiap 16:30 WIB)" : "❌ Nonaktif";
 
     return telegram.sendMessage(
       chatId,
-      `📊 *Status Bot Mobogen*\n\n👤 Nama: *${user.name || "Peserta"}*\n🔗 Akun Kemnaker: ${
+      `📊 *Status Bot Mobogen*\n\n👤 Nama: *${user.name || "Peserta"}*\n💼 Posisi: ${currentRole.icon} *${currentRole.name}*\n🔗 Akun Kemnaker: ${
         hasAccount ? `✅ Terhubung (${emailDecrypted})` : "❌ Belum login"
       }\n⏰ Pengingat Sore (16:30 WIB): *${reminderStatus}*\n📅 Tanggal Hari Ini: *${getTodayDateString()}*${draftStatus}`,
       {
@@ -300,7 +359,8 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
                 callback_data: "TOGGLE_REMINDER",
               },
             ],
-            [{ text: "📋 Menu Utama", callback_data: "BTN_MENU" }],
+            [{ text: "✏️ Buka Editor Interaktif", web_app: { url: `${getAppBaseUrl()}/editor?chatId=${chatId}` } }],
+            [{ text: "💼 Ganti Posisi Magang", callback_data: "SHOW_ROLES" }],
           ],
         },
       }
@@ -411,6 +471,8 @@ async function handleGenerateHadir(user: UserAccount, input: string) {
       pembelajaran: report.pembelajaran,
       kendala: report.kendala,
       rawInput: input,
+      createdAt: Date.now(),
+      safeguardNudgeSent: false,
     };
 
     user.draftReport = draft;
@@ -436,6 +498,7 @@ Apakah Anda ingin mengirimkan laporan kehadiran ini ke Monev Kemnaker?`;
       reply_markup: {
         inline_keyboard: [
           [{ text: "🚀 Kirim Absensi Hadir", callback_data: "SUBMIT_REPORT" }],
+          [{ text: "✏️ Buka Editor Interaktif", web_app: { url: `${getAppBaseUrl()}/editor?chatId=${user.chatId}` } }],
           [
             { text: "🔄 Buat Ulang", callback_data: "REGENERATE_REPORT" },
             { text: "❌ Batalkan", callback_data: "CANCEL_REPORT" },
@@ -471,6 +534,8 @@ async function handleGenerateIzin(user: UserAccount, reasonInput: string) {
       status: "ON_LEAVE",
       alasan_tidak_hadir: report.alasan_tidak_hadir,
       rawInput: reasonInput,
+      createdAt: Date.now(),
+      safeguardNudgeSent: false,
     };
 
     user.draftReport = draft;
@@ -490,6 +555,7 @@ Apakah Anda ingin mengirimkan laporan izin ini ke Monev Kemnaker?`;
       reply_markup: {
         inline_keyboard: [
           [{ text: "🚀 Kirim Keterangan Izin", callback_data: "SUBMIT_REPORT" }],
+          [{ text: "✏️ Buka Editor Interaktif", web_app: { url: `${getAppBaseUrl()}/editor?chatId=${user.chatId}` } }],
           [
             { text: "🔄 Buat Ulang", callback_data: "REGENERATE_REPORT" },
             { text: "❌ Batalkan", callback_data: "CANCEL_REPORT" },
@@ -515,6 +581,8 @@ async function handlePrepareAbsent(user: UserAccount) {
   const draft: UserDraftReport = {
     date: today,
     status: "ABSENT",
+    createdAt: Date.now(),
+    safeguardNudgeSent: false,
   };
 
   user.draftReport = draft;
@@ -630,13 +698,58 @@ async function handleConfirmSubmit(user: UserAccount, messageId?: number) {
   );
 }
 
+function sendRoleSelectionMenu(user: UserAccount) {
+  const buttons = Object.values(ROLES).map((role) => [
+    { text: `${role.icon} ${role.name}`, callback_data: `SET_ROLE_${role.id}` },
+  ]);
+
+  return telegram.sendMessage(
+    user.chatId,
+    "💼 *Pilih Posisi / Bidang Magang Anda:*\n\n_Pilihan ini membantu bot memberikan rekomendasi ide kegiatan harian yang relevan dengan tugas divisi Anda._",
+    {
+      reply_markup: {
+        inline_keyboard: buttons,
+      },
+    }
+  );
+}
+
+function sendRoleSuggestionsMenu(user: UserAccount) {
+  const currentRole = ROLES[user.role || "general"] || ROLES.general;
+  const suggestions = currentRole.suggestions;
+
+  const buttons = suggestions.map((sug, idx) => [
+    {
+      text: `${idx + 1}. ${sug.length > 35 ? sug.slice(0, 35) + "..." : sug}`,
+      callback_data: `USE_SUGGESTION_${idx}`,
+    },
+  ]);
+
+  buttons.push([
+    { text: "💼 Ganti Posisi Magang", callback_data: "SHOW_ROLES" },
+    { text: "📋 Menu Utama", callback_data: "BTN_MENU" },
+  ]);
+
+  return telegram.sendMessage(
+    user.chatId,
+    `💡 *Rekomendasi Ide Kegiatan Harian*\nPosisi: ${currentRole.icon} *${currentRole.name}*\n\n_Klik salah satu ide kegiatan di bawah ini untuk langsung menyusun laporan Monev dengan AI:_`,
+    {
+      reply_markup: {
+        inline_keyboard: buttons,
+      },
+    }
+  );
+}
+
 function sendHelpMenu(user: UserAccount) {
   const hasAccount = Boolean(user.username && user.password);
   const statusIcon = hasAccount ? "✅ Terhubung" : "❌ Belum Terhubung";
+  const currentRole = ROLES[user.role || "general"] || ROLES.general;
 
   const message = `🤖 *BANTUAN & PANDUAN MOBOGEN TELEGRAM BOT*
 
 Status Akun: *${statusIcon}*
+Posisi: ${currentRole.icon} *${currentRole.name}*
 
 *3 Macam Opsi Presensi Monev:*
 1️⃣ *Hadir (PRESENT)*:
@@ -648,9 +761,16 @@ Ketik \`/izin <alasan>\` (misal: \`/izin Sakit demam berobat ke dokter\`). AI ak
 3️⃣ *Tidak Hadir Tanpa Keterangan (ABSENT)*:
 Ketik \`/alpha\` atau klik tombol presensi tanpa keterangan di bawah.
 
+*Fitur Spesial:*
+- 📱 *Mini App Editor*: Buka editor interaktif langsung di Telegram.
+- 💡 *Ide Kegiatan*: Rekomendasi aktivitas sesuai posisi magang.
+- ⏰ *Pengingat 16:30*: Notifikasi otomatis sore hari.
+
 *Daftar Perintah:*
 - \`/login\` : Menghubungkan akun SIAPkerja Kemnaker
 - \`/status\` : Cek status akun & draft aktif
+- \`/role\` : Memilih posisi magang (Frontend, UI/UX, Data, dll)
+- \`/ide\` : Menampilkan rekomendasi kegiatan harian
 - \`/hadir <kegiatan>\` : Absen hadir
 - \`/izin <alasan>\` : Absen izin tidak hadir
 - \`/alpha\` : Absen tidak hadir tanpa keterangan
@@ -664,6 +784,11 @@ Ketik \`/alpha\` atau klik tombol presensi tanpa keterangan di bawah.
             [{ text: "🟢 1. Absen Hadir", callback_data: "MENU_HADIR" }],
             [{ text: "🟡 2. Izin (Dengan Keterangan)", callback_data: "MENU_IZIN" }],
             [{ text: "🔴 3. Tanpa Keterangan (Alpha)", callback_data: "MENU_ABSENT" }],
+            [{ text: "✏️ Buka Editor Interaktif", web_app: { url: `${getAppBaseUrl()}/editor?chatId=${user.chatId}` } }],
+            [
+              { text: "💡 Ide Kegiatan", callback_data: "SUGGEST_IDEAS" },
+              { text: "💼 Ganti Posisi", callback_data: "SHOW_ROLES" },
+            ],
           ]
         : [[{ text: "🔐 Hubungkan Akun Sekarang", callback_data: "BTN_LOGIN" }]],
     },
