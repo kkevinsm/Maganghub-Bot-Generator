@@ -6,6 +6,11 @@ Asisten pelaporan harian Monitoring dan Evaluasi (Monev) untuk peserta program M
 
 ## Fitur Utama
 
+- **🤖 Telegram Assistant Bot**:
+  - Cukup kirim poin-poin kegiatan harian via chat Telegram, AI akan menyusun 3 laporan Monev formal dan mengirimkannya langsung ke server Kemnaker.
+  - Dilengkapi tombol interaktif (*Inline Keyboard*) untuk kirim/regenerate instan.
+  - Pengingat otomatis setiap sore (16:00 WIB) agar tidak pernah terlewat mengisi absensi.
+  - Enkripsi kredensial tingkat tinggi (AES-256-GCM).
 - **Generator Laporan Pintar (AI)**:
   - Menyusun 3 bagian laporan harian (**Uraian Aktivitas**, **Pembelajaran yang Diperoleh**, dan **Kendala yang Dialami**) secara otomatis dari poin-poin singkat kegiatan harian.
   - Memastikan setiap bagian memenuhi syarat formal instansi pemerintah dengan standar **minimal 100 karakter**.
@@ -21,7 +26,7 @@ Asisten pelaporan harian Monitoring dan Evaluasi (Monev) untuk peserta program M
     - `Tidak Hadir Dengan Keterangan`
     - `Tidak Hadir Tanpa Keterangan`
 - **Keamanan Terjamin**:
-  - *Zero-Knowledge Credential Storage*: Password Anda tidak pernah disimpan di database server.
+  - *Zero-Knowledge Credential Storage* & enkripsi aman.
   - Dilengkapi *Security Headers* (HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy).
 
 ---
@@ -38,13 +43,18 @@ Salin `.env.example` ke `.env.local`:
 ```bash
 cp .env.example .env.local
 ```
-Lalu masukkan API Key Gemini Anda di `GEMINI_API_KEY` (atau Anda dapat mengisinya langsung melalui UI aplikasi).
+Lalu masukkan API Key Gemini Anda di `GEMINI_API_KEY` dan konfigurasi Bot Telegram (baca panduan lengkap di [`TELEGRAM_SETUP.md`](./TELEGRAM_SETUP.md)).
 
 ### 3. Menjalankan Server Pengembangan
 ```bash
 npm run dev
 ```
 Buka [http://localhost:3000](http://localhost:3000) di browser Anda.
+
+---
+
+## Panduan Telegram Bot
+Untuk setup bot Telegram Anda sendiri secara gratis dalam 30 detik, silakan baca dokumentasi di [TELEGRAM_SETUP.md](./TELEGRAM_SETUP.md).
 
 ---
 
