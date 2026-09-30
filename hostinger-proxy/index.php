@@ -318,7 +318,8 @@ if ($requestPath === '/api/kemnaker/login' && $_SERVER['REQUEST_METHOD'] === 'PO
 
         $exchangeData = json_decode($exchangeResponse, true);
 
-        if ($exchangeHttpCode !== 200 || empty($exchangeData)) {
+        // Check if exchange failed (treat all 2xx as success, Monev API returns 201 Created)
+        if ($exchangeHttpCode < 200 || $exchangeHttpCode >= 300 || empty($exchangeData)) {
             http_response_code($exchangeHttpCode ?: 502);
             $errMsg = $exchangeData['message'] ?? $exchangeData['error'] ?? "Pertukaran kode otorisasi gagal (HTTP $exchangeHttpCode).";
             echo json_encode(['error' => $errMsg]);
@@ -327,19 +328,34 @@ if ($requestPath === '/api/kemnaker/login' && $_SERVER['REQUEST_METHOD'] === 'PO
 
         $accessToken = $exchangeData['access_token'] 
             ?? $exchangeData['data']['access_token'] 
+            ?? $exchangeData['accessToken'] 
+            ?? $exchangeData['data']['accessToken'] 
             ?? $exchangeData['token'] 
             ?? $exchangeData['data']['token'] 
             ?? '';
 
         if (empty($accessToken)) {
             http_response_code(502);
-            echo json_encode(['error' => 'Token otentikasi tidak ditemukan dari respons server Monev.']);
+            echo json_encode([
+                'error' => 'Token otentikasi tidak ditemukan dari respons server Monev.',
+                'response_keys' => array_keys($exchangeData ?? [])
+            ]);
             exit;
         }
 
-        $user = $exchangeData['user'] ?? $exchangeData['data']['user'] ?? $exchangeData['data'] ?? null;
+        $user = $exchangeData['user'] 
+            ?? $exchangeData['data']['user'] 
+            ?? $exchangeData['profile'] 
+            ?? $exchangeData['data']['profile'] 
+            ?? $exchangeData['data'] 
+            ?? null;
 
-        echo json_encode(['access_token' => $accessToken, 'user' => $user]);
+        http_response_code(200);
+        echo json_encode([
+            'access_token' => $accessToken,
+            'refresh_token' => $exchangeData['refresh_token'] ?? $exchangeData['data']['refresh_token'] ?? null,
+            'user' => $user
+        ]);
 
     } finally {
         // Clean up cookie file
