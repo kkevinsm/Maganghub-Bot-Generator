@@ -159,11 +159,8 @@ export async function generateMonevFromText(
     generationConfig: {
       temperature: 0.7,
       topP: 0.9,
-      maxOutputTokens: 600,
+      maxOutputTokens: 1024,
       responseMimeType: "application/json",
-      thinkingConfig: {
-        thinkingBudget: 0,
-      },
     },
   });
 
