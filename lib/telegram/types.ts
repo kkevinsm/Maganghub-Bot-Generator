@@ -75,12 +75,14 @@ export interface UserAccount {
   username?: string; // Encrypted Kemnaker Email/NIK/No HP
   password?: string; // Encrypted Kemnaker Password
   token?: string; // Cached token
+  geminiApiKey?: string; // Encrypted Google Gemini API Key
   role?: string; // 'frontend' | 'backend' | 'uiux' | 'data' | 'pm_qa' | 'marketing' | 'hr' | 'general'
   draftReport?: UserDraftReport | null;
   step?:
     | "idle"
     | "awaiting_login_email"
     | "awaiting_login_password"
+    | "awaiting_gemini_key"
     | "awaiting_hadir_input"
     | "awaiting_izin_input"
     | "awaiting_role_selection"

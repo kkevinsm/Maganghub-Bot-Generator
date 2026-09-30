@@ -61,13 +61,34 @@ export interface GeneratedMonevReport {
   modelUsed?: string;
 }
 
+export async function validateGeminiApiKey(apiKey: string): Promise<boolean> {
+  if (!apiKey || !apiKey.trim()) return false;
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey.trim()}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: "hi" }] }],
+        generationConfig: { maxOutputTokens: 5 },
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function generateMonevFromText(
   input: string,
-  isIzin: boolean = false
+  isIzin: boolean = false,
+  customApiKey?: string
 ): Promise<GeneratedMonevReport> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = (customApiKey || "").trim() || process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY belum dikonfigurasi di server.");
+    throw new Error(
+      "GEMINI_API_KEY belum dikonfigurasi. Silakan masukkan API Key Gemini Anda dengan mengetik: /apikey <KEY_ANDA>"
+    );
   }
 
   const primaryModel = process.env.GEMINI_MODEL || "gemini-flash-latest";
@@ -131,7 +152,17 @@ export async function generateMonevFromText(
         lastError = `Model ${model} overloaded`;
         continue;
       }
+
+      if (res.status === 400 || res.status === 403 || res.status === 401) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(
+          errorData?.error?.message || "Gemini API Key tidak valid atau kuota habis."
+        );
+      }
     } catch (err) {
+      if (err instanceof Error && (err.message.includes("tidak valid") || err.message.includes("API key"))) {
+        throw err;
+      }
       lastError = err instanceof Error ? err.message : String(err);
     }
   }

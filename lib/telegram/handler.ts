@@ -5,6 +5,7 @@
  * 2. Telegram Mini App (In-App Editor Interaktif)
  * 3. Role-based Smart Suggestions (Rekomendasi Kegiatan Sesuai Posisi)
  * 4. Auto-Submit Safeguard Tracking
+ * 5. Gemini API Key Configuration per User
  */
 
 import { telegram } from "./client";
@@ -15,9 +16,9 @@ import {
   decryptData,
   deleteUser,
 } from "./store";
-import { generateMonevFromText } from "./ai";
+import { generateMonevFromText, validateGeminiApiKey } from "./ai";
 import { loginKemnaker, submitAttendanceToKemnaker } from "./kemnaker";
-import { ROLES, getRoleSuggestions } from "./suggestions";
+import { ROLES } from "./suggestions";
 import { TelegramUpdate, UserAccount, UserDraftReport } from "./types";
 
 function getTodayDateString(): string {
@@ -164,6 +165,15 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       );
     }
 
+    if (data === "BTN_SET_APIKEY") {
+      user.step = "awaiting_gemini_key";
+      saveUser(user);
+      return telegram.sendMessage(
+        chatId,
+        "🔑 *Masukkan Gemini API Key Anda*\n\nDapatkan API Key gratis di [Google AI Studio](https://aistudio.google.com/app/apikey), lalu kirimkan key tersebut ke chat ini:"
+      );
+    }
+
     if (data === "BTN_HELP" || data === "BTN_MENU") {
       return sendHelpMenu(user);
     }
@@ -198,6 +208,27 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     lowerText === "/absen"
   ) {
     return sendHelpMenu(user);
+  }
+
+  // Command: /apikey (Input API Key Gemini)
+  if (lowerText.startsWith("/apikey ") || lowerText.startsWith("/key ") || lowerText.startsWith("/setkey ")) {
+    const keyInput = rawText.replace(/^[/!](apikey|key|setkey)\s+/i, "").trim();
+    return handleSaveApiKey(user, keyInput);
+  }
+
+  if (lowerText === "/apikey" || lowerText === "/key") {
+    user.step = "awaiting_gemini_key";
+    saveUser(user);
+    return telegram.sendMessage(
+      chatId,
+      "🔑 *Konfigurasi Google Gemini API Key*\n\nSilakan kirimkan API Key Gemini Anda ke chat ini:\n_(Dapatkan gratis di https://aistudio.google.com/app/apikey)_"
+    );
+  }
+
+  // Step Handler: Menunggu Input API Key
+  if (user.step === "awaiting_gemini_key") {
+    user.step = "idle";
+    return handleSaveApiKey(user, rawText);
   }
 
   // Command: /role (Pilih Posisi Magang)
@@ -250,9 +281,15 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     user.step = "idle";
     saveUser(user);
 
+    // Cek apakah API key sudah ada
+    const hasKey = Boolean(user.geminiApiKey || process.env.GEMINI_API_KEY);
+    const keyMsg = hasKey
+      ? ""
+      : "\n\n💡 *Tips:* Jangan lupa masukkan Gemini API Key Anda dengan mengetik `/apikey <KEY>` untuk mengaktifkan AI Generator.";
+
     return telegram.sendMessage(
       chatId,
-      `🎉 *Berhasil Terhubung!*\n\nAkun atas nama *${user.name}* telah aktif dan siap.\n\nSilakan pilih opsi presensi Anda di bawah ini: 🚀`,
+      `🎉 *Berhasil Terhubung!*\n\nAkun atas nama *${user.name}* telah aktif dan siap.${keyMsg}\n\nSilakan pilih opsi presensi Anda di bawah ini: 🚀`,
       {
         reply_markup: {
           inline_keyboard: [
@@ -302,9 +339,14 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     user.name = (loginRes.user?.name as string) || user.name || "Peserta Magang";
     saveUser(user);
 
+    const hasKey = Boolean(user.geminiApiKey || process.env.GEMINI_API_KEY);
+    const keyMsg = hasKey
+      ? ""
+      : "\n\n💡 *Tips:* Jangan lupa masukkan Gemini API Key Anda dengan mengetik `/apikey <KEY>` untuk mengaktifkan AI Generator.";
+
     return telegram.sendMessage(
       chatId,
-      `🎉 *Berhasil Terhubung!*\n\nSelamat datang, *${user.name}*!\nAkun SIAPkerja Kemnaker Anda telah aktif.\n\nSilakan pilih opsi presensi Anda di bawah ini: 🚀`,
+      `🎉 *Berhasil Terhubung!*\n\nSelamat datang, *${user.name}*!\nAkun SIAPkerja Kemnaker Anda telah aktif.${keyMsg}\n\nSilakan pilih opsi presensi Anda di bawah ini: 🚀`,
       {
         reply_markup: {
           inline_keyboard: [
@@ -331,6 +373,9 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
   if (lowerText === "/status") {
     const hasAccount = Boolean(user.username && user.password);
     const emailDecrypted = hasAccount ? decryptData(user.username!) : null;
+    const hasKey = Boolean(user.geminiApiKey || process.env.GEMINI_API_KEY);
+    const apiKeyStatus = hasKey ? "✅ Terpasang" : "⚠️ Belum Diset (Ketik /apikey)";
+
     let draftStatus = "\n\n📝 *Draft*: Tidak ada draft aktif";
     if (user.draftReport) {
       const statusLabel =
@@ -349,7 +394,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       chatId,
       `📊 *Status Bot Mobogen*\n\n👤 Nama: *${user.name || "Peserta"}*\n💼 Posisi: ${currentRole.icon} *${currentRole.name}*\n🔗 Akun Kemnaker: ${
         hasAccount ? `✅ Terhubung (${emailDecrypted})` : "❌ Belum login"
-      }\n⏰ Pengingat Sore (16:30 WIB): *${reminderStatus}*\n📅 Tanggal Hari Ini: *${getTodayDateString()}*${draftStatus}`,
+      }\n🔑 Gemini AI Key: *${apiKeyStatus}*\n⏰ Pengingat Sore (16:30 WIB): *${reminderStatus}*\n📅 Tanggal Hari Ini: *${getTodayDateString()}*${draftStatus}`,
       {
         reply_markup: {
           inline_keyboard: [
@@ -359,6 +404,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
                 callback_data: "TOGGLE_REMINDER",
               },
             ],
+            [{ text: "🔑 Atur Gemini API Key", callback_data: "BTN_SET_APIKEY" }],
             [{ text: "✏️ Buka Editor Interaktif", web_app: { url: `${getAppBaseUrl()}/editor?chatId=${chatId}` } }],
             [{ text: "💼 Ganti Posisi Magang", callback_data: "SHOW_ROLES" }],
           ],
@@ -451,9 +497,66 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
 }
 
 /**
+ * Helper: Menyimpan Gemini API Key
+ */
+async function handleSaveApiKey(user: UserAccount, keyInput: string) {
+  if (!keyInput) {
+    return telegram.sendMessage(
+      user.chatId,
+      "⚠️ API Key tidak boleh kosong. Gunakan format:\n`/apikey AIzaSy...`\n\nDapatkan gratis di https://aistudio.google.com/app/apikey"
+    );
+  }
+
+  await telegram.sendChatAction(user.chatId, "typing");
+  await telegram.sendMessage(user.chatId, "⏳ Sedang memvalidasi Gemini API Key Anda...");
+
+  const isValid = await validateGeminiApiKey(keyInput);
+  if (!isValid) {
+    return telegram.sendMessage(
+      user.chatId,
+      "❌ *Gemini API Key Tidak Valid*\n\nPastikan Anda menyalin key lengkap dari [Google AI Studio](https://aistudio.google.com/app/apikey), lalu coba kembali dengan:\n`/apikey <KEY_ANDA>`"
+    );
+  }
+
+  user.geminiApiKey = encryptData(keyInput);
+  saveUser(user);
+
+  return telegram.sendMessage(
+    user.chatId,
+    "🎉 *Gemini API Key Berhasil Disimpan & Aktif!* ✅\n\nSekarang Anda sudah bisa langsung membuat laporan Monev harian otomatis dengan AI. Silakan coba kirimkan poin kegiatan Anda sekarang! 🚀",
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🟢 1. Absen Hadir Sekarang", callback_data: "MENU_HADIR" }],
+          [{ text: "💡 Rekomendasi Ide Kegiatan", callback_data: "SUGGEST_IDEAS" }],
+        ],
+      },
+    }
+  );
+}
+
+/**
  * Handler Opsi 1: Hadir (PRESENT)
  */
 async function handleGenerateHadir(user: UserAccount, input: string) {
+  const customKey = user.geminiApiKey ? decryptData(user.geminiApiKey) : undefined;
+  const hasKey = Boolean(customKey || process.env.GEMINI_API_KEY);
+
+  if (!hasKey) {
+    return telegram.sendMessage(
+      user.chatId,
+      "🔑 *Gemini API Key Diperlukan*\n\nUntuk menyusun laporan otomatis dengan AI, silakan masukkan Gemini API Key Anda terlebih dahulu (Gratis):\n\n1️⃣ Buka https://aistudio.google.com/app/apikey\n2️⃣ Buat API Key baru\n3️⃣ Kirim ke bot ini: `/apikey <KEY_ANDA>`",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔑 Masukkan Gemini API Key", callback_data: "BTN_SET_APIKEY" }],
+            [{ text: "✏️ Buka Editor Interaktif", web_app: { url: `${getAppBaseUrl()}/editor?chatId=${user.chatId}` } }],
+          ],
+        },
+      }
+    );
+  }
+
   await telegram.sendChatAction(user.chatId, "typing");
   await telegram.sendMessage(
     user.chatId,
@@ -461,7 +564,7 @@ async function handleGenerateHadir(user: UserAccount, input: string) {
   );
 
   try {
-    const report = await generateMonevFromText(input, false);
+    const report = await generateMonevFromText(input, false, customKey);
     const today = getTodayDateString();
 
     const draft: UserDraftReport = {
@@ -508,9 +611,18 @@ Apakah Anda ingin mengirimkan laporan kehadiran ini ke Monev Kemnaker?`;
     });
   } catch (error) {
     console.error("Error generating Hadir report:", error);
+    const errMsg = error instanceof Error ? error.message : "Terjadi kesalahan.";
     return telegram.sendMessage(
       user.chatId,
-      `⚠️ Gagal menyusun laporan AI: ${error instanceof Error ? error.message : "Terjadi kesalahan."}\nSilakan coba kirim ulang poin kegiatan Anda.`
+      `⚠️ Gagal menyusun laporan AI: ${errMsg}\n\nSilakan periksa API Key Anda via \`/apikey\` atau coba kirim ulang poin kegiatan Anda.`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔑 Atur Gemini API Key", callback_data: "BTN_SET_APIKEY" }],
+            [{ text: "✏️ Buka Editor Interaktif", web_app: { url: `${getAppBaseUrl()}/editor?chatId=${user.chatId}` } }],
+          ],
+        },
+      }
     );
   }
 }
@@ -519,6 +631,23 @@ Apakah Anda ingin mengirimkan laporan kehadiran ini ke Monev Kemnaker?`;
  * Handler Opsi 2: Tidak Hadir Dengan Keterangan (ON_LEAVE)
  */
 async function handleGenerateIzin(user: UserAccount, reasonInput: string) {
+  const customKey = user.geminiApiKey ? decryptData(user.geminiApiKey) : undefined;
+  const hasKey = Boolean(customKey || process.env.GEMINI_API_KEY);
+
+  if (!hasKey) {
+    return telegram.sendMessage(
+      user.chatId,
+      "🔑 *Gemini API Key Diperlukan*\n\nSilakan masukkan Gemini API Key Anda terlebih dahulu (Gratis):\n`/apikey <KEY_ANDA>`",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔑 Masukkan Gemini API Key", callback_data: "BTN_SET_APIKEY" }],
+          ],
+        },
+      }
+    );
+  }
+
   await telegram.sendChatAction(user.chatId, "typing");
   await telegram.sendMessage(
     user.chatId,
@@ -526,7 +655,7 @@ async function handleGenerateIzin(user: UserAccount, reasonInput: string) {
   );
 
   try {
-    const report = await generateMonevFromText(reasonInput, true);
+    const report = await generateMonevFromText(reasonInput, true, customKey);
     const today = getTodayDateString();
 
     const draft: UserDraftReport = {
@@ -565,9 +694,17 @@ Apakah Anda ingin mengirimkan laporan izin ini ke Monev Kemnaker?`;
     });
   } catch (error) {
     console.error("Error generating Izin report:", error);
+    const errMsg = error instanceof Error ? error.message : "Terjadi kesalahan.";
     return telegram.sendMessage(
       user.chatId,
-      `⚠️ Gagal menyusun keterangan izin: ${error instanceof Error ? error.message : "Terjadi kesalahan."}`
+      `⚠️ Gagal menyusun keterangan izin: ${errMsg}\n\nSilakan periksa API Key Anda via \`/apikey\``,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔑 Atur Gemini API Key", callback_data: "BTN_SET_APIKEY" }],
+          ],
+        },
+      }
     );
   }
 }
@@ -744,11 +881,14 @@ function sendRoleSuggestionsMenu(user: UserAccount) {
 function sendHelpMenu(user: UserAccount) {
   const hasAccount = Boolean(user.username && user.password);
   const statusIcon = hasAccount ? "✅ Terhubung" : "❌ Belum Terhubung";
+  const hasKey = Boolean(user.geminiApiKey || process.env.GEMINI_API_KEY);
+  const keyIcon = hasKey ? "✅ Terpasang" : "⚠️ Belum Diset";
   const currentRole = ROLES[user.role || "general"] || ROLES.general;
 
   const message = `🤖 *BANTUAN & PANDUAN MOBOGEN TELEGRAM BOT*
 
 Status Akun: *${statusIcon}*
+Gemini API Key: *${keyIcon}*
 Posisi: ${currentRole.icon} *${currentRole.name}*
 
 *3 Macam Opsi Presensi Monev:*
@@ -761,19 +901,16 @@ Ketik \`/izin <alasan>\` (misal: \`/izin Sakit demam berobat ke dokter\`). AI ak
 3️⃣ *Tidak Hadir Tanpa Keterangan (ABSENT)*:
 Ketik \`/alpha\` atau klik tombol presensi tanpa keterangan di bawah.
 
-*Fitur Spesial:*
-- 📱 *Mini App Editor*: Buka editor interaktif langsung di Telegram.
-- 💡 *Ide Kegiatan*: Rekomendasi aktivitas sesuai posisi magang.
-- ⏰ *Pengingat 16:30*: Notifikasi otomatis sore hari.
-
 *Daftar Perintah:*
 - \`/login\` : Menghubungkan akun SIAPkerja Kemnaker
-- \`/status\` : Cek status akun & draft aktif
+- \`/apikey <KEY>\` : Memasukkan Gemini API Key Anda (Gratis)
+- \`/status\` : Cek status akun, API key, & draft aktif
 - \`/role\` : Memilih posisi magang (Frontend, UI/UX, Data, dll)
 - \`/ide\` : Menampilkan rekomendasi kegiatan harian
 - \`/hadir <kegiatan>\` : Absen hadir
 - \`/izin <alasan>\` : Absen izin tidak hadir
 - \`/alpha\` : Absen tidak hadir tanpa keterangan
+- \`/reminder on\` / \`off\` : Pengaturan notifikasi sore
 - \`/logout\` : Menghapus data akun dari bot
 - \`/help\` : Menampilkan panduan ini`;
 
@@ -786,11 +923,15 @@ Ketik \`/alpha\` atau klik tombol presensi tanpa keterangan di bawah.
             [{ text: "🔴 3. Tanpa Keterangan (Alpha)", callback_data: "MENU_ABSENT" }],
             [{ text: "✏️ Buka Editor Interaktif", web_app: { url: `${getAppBaseUrl()}/editor?chatId=${user.chatId}` } }],
             [
+              { text: "🔑 Atur Gemini API Key", callback_data: "BTN_SET_APIKEY" },
               { text: "💡 Ide Kegiatan", callback_data: "SUGGEST_IDEAS" },
-              { text: "💼 Ganti Posisi", callback_data: "SHOW_ROLES" },
             ],
+            [{ text: "💼 Ganti Posisi", callback_data: "SHOW_ROLES" }],
           ]
-        : [[{ text: "🔐 Hubungkan Akun Sekarang", callback_data: "BTN_LOGIN" }]],
+        : [
+            [{ text: "🔐 Hubungkan Akun Sekarang", callback_data: "BTN_LOGIN" }],
+            [{ text: "🔑 Masukkan Gemini API Key", callback_data: "BTN_SET_APIKEY" }],
+          ],
     },
   });
 }

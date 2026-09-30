@@ -1,12 +1,12 @@
 import { type NextRequest } from "next/server";
-import { getUser, saveUser, decryptData } from "@/lib/telegram/store";
-import { generateMonevFromText } from "@/lib/telegram/ai";
+import { getUser, saveUser, encryptData, decryptData } from "@/lib/telegram/store";
+import { generateMonevFromText, validateGeminiApiKey } from "@/lib/telegram/ai";
 import { loginKemnaker, submitAttendanceToKemnaker } from "@/lib/telegram/kemnaker";
 
 export const dynamic = "force-dynamic";
 
 /**
- * GET: Mengambil draft aktif user untuk Mini App Editor
+ * GET: Mengambil draft aktif user dan status API key untuk Mini App Editor
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -18,23 +18,25 @@ export async function GET(request: NextRequest) {
 
   const user = getUser(chatId);
   const hasAccount = Boolean(user.username && user.password);
+  const hasGeminiKey = Boolean(user.geminiApiKey || process.env.GEMINI_API_KEY);
 
   return Response.json({
     chatId: user.chatId,
     name: user.name || "Peserta Magang",
     hasAccount,
+    hasGeminiKey,
     role: user.role || "general",
     draft: user.draftReport || null,
   });
 }
 
 /**
- * POST: Menyimpan atau submit draft dari Mini App Editor
+ * POST: Menyimpan, generate AI, atau submit draft dari Mini App Editor
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { chatId, action, draft, promptAktivitas, status } = body;
+    const { chatId, action, draft, promptAktivitas, status, apiKey } = body;
 
     if (!chatId) {
       return Response.json({ error: "chatId wajib disertakan." }, { status: 400 });
@@ -42,10 +44,29 @@ export async function POST(request: NextRequest) {
 
     const user = getUser(Number(chatId));
 
+    // Action: Set / Update Gemini API Key dari Editor
+    if (action === "set_apikey") {
+      const keyToSet = (apiKey || "").trim();
+      if (!keyToSet) {
+        return Response.json({ error: "API Key tidak boleh kosong." }, { status: 400 });
+      }
+
+      const isValid = await validateGeminiApiKey(keyToSet);
+      if (!isValid) {
+        return Response.json({ error: "Gemini API Key tidak valid. Silakan periksa kembali key Anda." }, { status: 400 });
+      }
+
+      user.geminiApiKey = encryptData(keyToSet);
+      saveUser(user);
+      return Response.json({ success: true, message: "Gemini API Key berhasil disimpan!" });
+    }
+
     // Action: Generate via AI di Mini App
     if (action === "generate") {
       const isIzin = status === "ON_LEAVE";
-      const report = await generateMonevFromText(promptAktivitas || "", isIzin);
+      const userKey = (apiKey || "").trim() || (user.geminiApiKey ? decryptData(user.geminiApiKey) : undefined);
+
+      const report = await generateMonevFromText(promptAktivitas || "", isIzin, userKey);
 
       const today = new Intl.DateTimeFormat("en-CA", {
         timeZone: "Asia/Jakarta",

@@ -16,6 +16,9 @@ export default function TelegramEditorPage() {
   const [chatId, setChatId] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>("Peserta Magang");
   const [hasAccount, setHasAccount] = useState<boolean>(true);
+  const [hasGeminiKey, setHasGeminiKey] = useState<boolean>(true);
+  const [apiKeyInput, setApiKeyInput] = useState<string>("");
+  const [showApiKeyBox, setShowApiKeyBox] = useState<boolean>(false);
   const [status, setStatus] = useState<"PRESENT" | "ON_LEAVE" | "ABSENT">("PRESENT");
 
   const [uraian, setUraian] = useState("");
@@ -58,6 +61,10 @@ export default function TelegramEditorPage() {
         const data = await res.json();
         setUserName(data.name || "Peserta Magang");
         setHasAccount(data.hasAccount ?? true);
+        setHasGeminiKey(data.hasGeminiKey ?? true);
+        if (!data.hasGeminiKey) {
+          setShowApiKeyBox(true);
+        }
         if (data.draft) {
           const d: DraftReport = data.draft;
           setStatus(d.status || "PRESENT");
@@ -74,6 +81,40 @@ export default function TelegramEditorPage() {
       setLoading(false);
     }
   }
+
+  const handleSaveApiKey = () => {
+    if (!apiKeyInput.trim()) {
+      setMessage({ type: "error", text: "Silakan masukkan API Key Gemini Anda." });
+      return;
+    }
+
+    startTransition(async () => {
+      setMessage(null);
+      try {
+        const res = await fetch("/api/telegram/draft", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chatId,
+            action: "set_apikey",
+            apiKey: apiKeyInput.trim(),
+          }),
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setHasGeminiKey(true);
+          setShowApiKeyBox(false);
+          setApiKeyInput("");
+          setMessage({ type: "success", text: "🔑 Gemini API Key berhasil disimpan dan aktif!" });
+        } else {
+          setMessage({ type: "error", text: data.error || "Gagal menyimpan API Key." });
+        }
+      } catch {
+        setMessage({ type: "error", text: "Gagal menyimpan API Key." });
+      }
+    });
+  };
 
   const handleGenerateAI = () => {
     if (!rawInput.trim()) {
@@ -92,6 +133,7 @@ export default function TelegramEditorPage() {
             action: "generate",
             status,
             promptAktivitas: rawInput,
+            apiKey: apiKeyInput.trim() || undefined,
           }),
         });
 
@@ -103,6 +145,9 @@ export default function TelegramEditorPage() {
           setAlasanIzin(data.draft.alasan_tidak_hadir || "");
           setMessage({ type: "success", text: "Laporan berhasil disusun otomatis oleh AI!" });
         } else {
+          if (data.error && data.error.includes("GEMINI_API_KEY")) {
+            setShowApiKeyBox(true);
+          }
           setMessage({ type: "error", text: data.error || "Gagal generate laporan AI." });
         }
       } catch {
@@ -155,7 +200,6 @@ export default function TelegramEditorPage() {
   };
 
   const handleSubmitKemnaker = () => {
-    // Validasi karakter
     if (status === "PRESENT") {
       if (uraian.length < 100 || pembelajaran.length < 100 || kendala.length < 100) {
         setMessage({
@@ -210,7 +254,6 @@ export default function TelegramEditorPage() {
             type: "success",
             text: "🎉 Alhamdulillah! Presensi berhasil dikirim resmi ke Kemnaker!",
           });
-          // Close web app after 2 seconds if inside Telegram
           setTimeout(() => {
             const tg = (window as unknown as { Telegram?: { WebApp?: { close: () => void } } }).Telegram?.WebApp;
             if (tg) tg.close();
@@ -227,7 +270,7 @@ export default function TelegramEditorPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 pb-12 font-sans antialiased selection:bg-blue-600 selection:text-white">
       {/* Header */}
-      <div className="max-w-xl mx-auto mb-6">
+      <div className="max-w-xl mx-auto mb-5">
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <div>
             <span className="text-xs font-semibold uppercase tracking-wider text-blue-400 bg-blue-950/60 border border-blue-800/40 px-2.5 py-0.5 rounded-full">
@@ -240,10 +283,58 @@ export default function TelegramEditorPage() {
               Hai, <span className="font-semibold text-slate-200">{userName}</span>
             </p>
           </div>
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/20">
-            MB
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowApiKeyBox(!showApiKeyBox)}
+            className="text-xs bg-slate-900 border border-slate-700 hover:border-slate-500 text-slate-300 px-3 py-1.5 rounded-xl font-medium transition flex items-center gap-1.5 shadow-sm"
+          >
+            <span>🔑 API Key</span>
+            <span
+              className={`h-2 w-2 rounded-full ${
+                hasGeminiKey ? "bg-emerald-400" : "bg-amber-400 animate-pulse"
+              }`}
+            />
+          </button>
         </div>
+
+        {/* Gemini API Key Box */}
+        {showApiKeyBox && (
+          <div className="mt-3 p-3.5 bg-slate-900/95 border border-indigo-800/50 rounded-2xl shadow-xl space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-indigo-300">
+                🔑 Google Gemini API Key
+              </span>
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] text-blue-400 hover:underline"
+              >
+                Dapatkan Key Gratis ↗
+              </a>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Masukkan API Key Gemini Anda untuk mengaktifkan AI Generator:
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                placeholder="AIzaSy..."
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+              />
+              <button
+                type="button"
+                onClick={handleSaveApiKey}
+                disabled={isPending}
+                className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs px-3.5 py-1.5 rounded-xl font-semibold transition"
+              >
+                Simpan
+              </button>
+            </div>
+          </div>
+        )}
 
         {!hasAccount && (
           <div className="mt-3 p-3 bg-amber-950/40 border border-amber-800/60 rounded-xl text-xs text-amber-200">
