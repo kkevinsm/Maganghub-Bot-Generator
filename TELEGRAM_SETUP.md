@@ -25,7 +25,7 @@ Buka file `.env.local` pada project Anda, lalu masukkan token tersebut:
 ```env
 TELEGRAM_BOT_TOKEN=7123456789:AAFg8Z...
 TELEGRAM_WEBHOOK_SECRET=mobogen_telegram_secret_2026
-TELEGRAM_ENCRYPTION_SECRET=kunci_rahasia_acak_32_karakter
+TELEGRAM_ENCRYPTION_SECRET=mobogen_kemnaker_secure_salt_2026
 ```
 
 ---
@@ -44,34 +44,35 @@ Jika muncul respons `{"ok":true,"result":true,"description":"Webhook was set"}`,
 
 ---
 
-## 💬 Cara Penggunaan Bot di Telegram
+## 💬 3 Macam Opsi Presensi di Telegram Bot
 
-1. **Buka Bot Anda** di Telegram dan klik **Start**.
-2. **Hubungkan Akun Kemnaker (Hanya Sekali)**:
-   ```text
-   /login email@domain.com password123
-   ```
-   *(Atau cukup ketik `/login` untuk panduan bertahap).*
+1. **🟢 Opsi 1: Hadir (PRESENT)**
+   - Cukup kirim poin-poin kegiatan harian Anda (atau ketik `/hadir <poin>`):
+     ```text
+     Hari ini slicing UI dashboard, integrasi Bot Telegram, dan fixing bug CORS
+     ```
+   - AI menyusun 3 narasi formal (Uraian Aktivitas, Pembelajaran, Kendala masing-masing $\ge$ 100 karakter).
+   - Klik tombol **[ 🚀 Kirim Absensi Hadir ]**.
 
-3. **Laporan & Absen Harian**:
-   Cukup kirimkan poin kegiatan Anda:
-   ```text
-   Hari ini slicing UI dashboard, buat integrasi Bot Telegram, dan fixing bug CORS
-   ```
-4. **Konfirmasi & Kirim**:
-   AI akan menyusun 3 bagian narasi formal ($\ge$ 100 karakter):
-   - **Uraian Aktivitas**
-   - **Pembelajaran yang Diperoleh**
-   - **Kendala yang Dialami**
-   
-   Klik tombol **[ 🚀 Kirim Absensi Sekarang ]**. Laporan langsung terkirim resmi ke server Monev Kemnaker! ✅
+2. **🟡 Opsi 2: Tidak Hadir Dengan Keterangan (ON_LEAVE)**
+   - Ketik `/izin <alasan>` (atau pilih menu Izin):
+     ```text
+     /izin Sakit demam dan berobat ke klinik dokter
+     ```
+   - AI menyusun narasi keterangan izin resmi ($\ge$ 100 karakter).
+   - Klik tombol **[ 🚀 Kirim Keterangan Izin ]**.
 
-5. **Izin Tidak Hadir**:
-   ```text
-   /izin Sakit demam dan istirahat dokter
-   ```
+3. **🔴 Opsi 3: Tidak Hadir Tanpa Keterangan (ABSENT / Alpha)**
+   - Ketik `/alpha` atau klik menu **[ 🔴 Tanpa Keterangan ]**.
+   - Klik konfirmasi **[ 🚀 Ya, Kirim Tanpa Keterangan ]** untuk mengirim status tidak hadir tanpa lampiran/alasan ke Kemnaker.
 
-6. **Perintah Lainnya**:
-   - `/status` : Cek status akun & draft aktif
-   - `/help` : Panduan penggunaan
-   - `/logout` : Menghapus data akun dari bot
+---
+
+## 📋 Daftar Perintah Bot:
+- `/start` atau `/help` atau `/menu` : Menampilkan menu utama & 3 opsi presensi
+- `/login <email> <password>` : Menghubungkan akun SIAPkerja Kemnaker
+- `/status` : Cek status koneksi akun & tanggal hari ini
+- `/hadir <kegiatan>` : Absen hadir
+- `/izin <alasan>` : Absen izin tidak hadir
+- `/alpha` : Absen tidak hadir tanpa keterangan
+- `/logout` : Menghapus data akun dari bot

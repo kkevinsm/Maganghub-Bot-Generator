@@ -1,5 +1,9 @@
 /**
  * Main Telegram Bot Conversation Handler untuk Mobogen
+ * Mendukung 3 Macam Opsi Presensi Monev MagangHub:
+ * 1. Hadir (PRESENT)
+ * 2. Tidak Hadir Dengan Keterangan (ON_LEAVE)
+ * 3. Tidak Hadir Tanpa Keterangan (ABSENT)
  */
 
 import { telegram } from "./client";
@@ -33,8 +37,31 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     const data = cb.data || "";
     const user = getUser(chatId);
 
-    // Answer callback query immediately to stop the loading spinner on button
+    // Answer callback query immediately to stop the loading animation
     await telegram.answerCallbackQuery(cb.id);
+
+    // Menu Action Buttons
+    if (data === "MENU_HADIR") {
+      user.step = "awaiting_hadir_input";
+      saveUser(user);
+      return telegram.sendMessage(
+        chatId,
+        "🟢 *Presensi: Hadir*\n\nSilakan kirimkan ringkasan / poin-poin kegiatan harian Anda (misal: _'Slicing UI dashboard dan testing API'_).\n\nAI Mobogen akan menyusun 3 bagian narasi formal (Uraian, Pembelajaran, Kendala minimal 100 karakter)."
+      );
+    }
+
+    if (data === "MENU_IZIN") {
+      user.step = "awaiting_izin_input";
+      saveUser(user);
+      return telegram.sendMessage(
+        chatId,
+        "🟡 *Presensi: Tidak Hadir Dengan Keterangan (Izin/Sakit)*\n\nSilakan kirimkan alasan atau keterangan ketidakhadiran Anda (misal: _'Sakit demam dan berobat ke klinik dokter'_).\n\nAI Mobogen akan menyusun narasi permohonan izin resmi minimal 100 karakter."
+      );
+    }
+
+    if (data === "MENU_ABSENT") {
+      return handlePrepareAbsent(user);
+    }
 
     if (data === "SUBMIT_REPORT") {
       return handleConfirmSubmit(user, cb.message?.message_id);
@@ -52,12 +79,12 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
         return telegram.editMessageText(
           chatId,
           cb.message.message_id,
-          "❌ Draft laporan berhasil dibatalkan. Silakan kirimkan poin-poin kegiatan baru kapan saja."
+          "❌ Draft presensi berhasil dibatalkan. Silakan pilih opsi presensi kembali kapan saja."
         );
       }
       return telegram.sendMessage(
         chatId,
-        "❌ Draft laporan berhasil dibatalkan. Silakan kirimkan poin-poin kegiatan baru kapan saja."
+        "❌ Draft presensi berhasil dibatalkan. Silakan pilih opsi presensi kembali kapan saja."
       );
     }
 
@@ -70,7 +97,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       );
     }
 
-    if (data === "BTN_HELP") {
+    if (data === "BTN_HELP" || data === "BTN_MENU") {
       return sendHelpMenu(user);
     }
 
@@ -95,8 +122,14 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     user.telegramUsername = msg.from.username;
   }
 
-  // Command: /start, /help, menu
-  if (lowerText === "/start" || lowerText === "/help" || lowerText === "menu") {
+  // Command: /start, /help, /menu, /absen
+  if (
+    lowerText === "/start" ||
+    lowerText === "/help" ||
+    lowerText === "menu" ||
+    lowerText === "/menu" ||
+    lowerText === "/absen"
+  ) {
     return sendHelpMenu(user);
   }
 
@@ -142,7 +175,16 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
 
     return telegram.sendMessage(
       chatId,
-      `🎉 *Berhasil Terhubung!*\n\nAkun atas nama *${user.name}* telah aktif dan siap.\n\nSekarang Anda cukup mengirimkan poin-poin kegiatan harian Anda ke chat ini, AI Mobogen akan menyusun laporan dan mengirimkan absensi Anda otomatis! 🚀`
+      `🎉 *Berhasil Terhubung!*\n\nAkun atas nama *${user.name}* telah aktif dan siap.\n\nSekarang Anda cukup mengirimkan poin kegiatan harian atau memilih menu presensi! 🚀`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🟢 Absen Hadir", callback_data: "MENU_HADIR" }],
+            [{ text: "🟡 Tidak Hadir Dengan Keterangan (Izin)", callback_data: "MENU_IZIN" }],
+            [{ text: "🔴 Tidak Hadir Tanpa Keterangan", callback_data: "MENU_ABSENT" }],
+          ],
+        },
+      }
     );
   }
 
@@ -184,7 +226,16 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
 
     return telegram.sendMessage(
       chatId,
-      `🎉 *Berhasil Terhubung!*\n\nSelamat datang, *${user.name}*!\nAkun SIAPkerja Kemnaker Anda telah aktif.\n\nKirimkan ringkasan kegiatan harian Anda kapan saja untuk membuat laporan Monev otomatis! 🚀`
+      `🎉 *Berhasil Terhubung!*\n\nSelamat datang, *${user.name}*!\nAkun SIAPkerja Kemnaker Anda telah aktif.\n\nSilakan pilih opsi presensi Anda di bawah ini: 🚀`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🟢 Absen Hadir", callback_data: "MENU_HADIR" }],
+            [{ text: "🟡 Tidak Hadir Dengan Keterangan (Izin)", callback_data: "MENU_IZIN" }],
+            [{ text: "🔴 Tidak Hadir Tanpa Keterangan", callback_data: "MENU_ABSENT" }],
+          ],
+        },
+      }
     );
   }
 
@@ -201,9 +252,16 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
   if (lowerText === "/status") {
     const hasAccount = Boolean(user.username && user.password);
     const emailDecrypted = hasAccount ? decryptData(user.username!) : null;
-    const draftStatus = user.draftReport
-      ? `\n\n📝 *Draft Tersimpan*: ${user.draftReport.status === "PRESENT" ? "Hadir" : "Izin"} (Siap dikirim)`
-      : "\n\n📝 *Draft*: Tidak ada draft aktif";
+    let draftStatus = "\n\n📝 *Draft*: Tidak ada draft aktif";
+    if (user.draftReport) {
+      const statusLabel =
+        user.draftReport.status === "PRESENT"
+          ? "Hadir"
+          : user.draftReport.status === "ON_LEAVE"
+          ? "Tidak Hadir Dengan Keterangan"
+          : "Tidak Hadir Tanpa Keterangan";
+      draftStatus = `\n\n📝 *Draft Tersimpan*: ${statusLabel} (Siap dikirim)`;
+    }
 
     return telegram.sendMessage(
       chatId,
@@ -213,19 +271,52 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     );
   }
 
-  // Command: /izin <alasan>
+  // Command: /alpha atau /absent atau /tanpaket (Opsi 3: Tidak Hadir Tanpa Keterangan)
+  if (
+    lowerText === "/alpha" ||
+    lowerText === "/absent" ||
+    lowerText === "/tanpaket" ||
+    lowerText === "/tidakhadir"
+  ) {
+    return handlePrepareAbsent(user);
+  }
+
+  // Command: /izin <alasan> (Opsi 2: Tidak Hadir Dengan Keterangan)
   if (lowerText.startsWith("/izin") || lowerText.startsWith("!izin")) {
     const reasonInput = rawText.replace(/^[/!]izin\s*/i, "").trim();
     if (!reasonInput) {
+      user.step = "awaiting_izin_input";
+      saveUser(user);
       return telegram.sendMessage(
         chatId,
-        "⚠️ Silakan sertakan alasan izin. Contoh:\n`/izin Sakit demam dan istirahat dokter`"
+        "🟡 *Presensi: Tidak Hadir Dengan Keterangan*\n\nSilakan kirimkan alasan izin Anda (misal: _'Sakit demam dan disarankan istirahat dokter'_):"
       );
     }
     return handleGenerateIzin(user, reasonInput);
   }
 
-  // General Text: Generate Daily Report
+  // Command: /hadir <kegiatan> (Opsi 1: Hadir)
+  if (lowerText.startsWith("/hadir") || lowerText.startsWith("!hadir")) {
+    const actInput = rawText.replace(/^[/!]hadir\s*/i, "").trim();
+    if (!actInput) {
+      user.step = "awaiting_hadir_input";
+      saveUser(user);
+      return telegram.sendMessage(
+        chatId,
+        "🟢 *Presensi: Hadir*\n\nSilakan kirimkan poin kegiatan Anda hari ini:"
+      );
+    }
+    return handleGenerateHadir(user, actInput);
+  }
+
+  // Step Handler: Menunggu input izin
+  if (user.step === "awaiting_izin_input") {
+    user.step = "idle";
+    saveUser(user);
+    return handleGenerateIzin(user, rawText);
+  }
+
+  // Step Handler / Default Text: Presensi Hadir
   if (!user.username || !user.password) {
     return telegram.sendMessage(
       chatId,
@@ -244,6 +335,9 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
   return handleGenerateHadir(user, rawText);
 }
 
+/**
+ * Handler Opsi 1: Hadir (PRESENT)
+ */
 async function handleGenerateHadir(user: UserAccount, input: string) {
   await telegram.sendChatAction(user.chatId, "typing");
   await telegram.sendMessage(
@@ -269,7 +363,7 @@ async function handleGenerateHadir(user: UserAccount, input: string) {
     saveUser(user);
 
     const message = `📋 *PREVIEW LAPORAN MONEV (${today})*
-Status: *Hadir (PRESENT)*
+Status: *1. Hadir (PRESENT)*
 
 1️⃣ *Uraian Aktivitas* (${draft.uraian_aktivitas?.length || 0} karakter):
 ${draft.uraian_aktivitas}
@@ -281,12 +375,12 @@ ${draft.pembelajaran}
 ${draft.kendala}
 
 ---------------------------------
-Apakah Anda ingin mengirimkan laporan ini ke sistem Monev Kemnaker?`;
+Apakah Anda ingin mengirimkan laporan kehadiran ini ke Monev Kemnaker?`;
 
     return telegram.sendMessage(user.chatId, message, {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "🚀 Kirim Absensi Sekarang", callback_data: "SUBMIT_REPORT" }],
+          [{ text: "🚀 Kirim Absensi Hadir", callback_data: "SUBMIT_REPORT" }],
           [
             { text: "🔄 Buat Ulang", callback_data: "REGENERATE_REPORT" },
             { text: "❌ Batalkan", callback_data: "CANCEL_REPORT" },
@@ -303,6 +397,9 @@ Apakah Anda ingin mengirimkan laporan ini ke sistem Monev Kemnaker?`;
   }
 }
 
+/**
+ * Handler Opsi 2: Tidak Hadir Dengan Keterangan (ON_LEAVE)
+ */
 async function handleGenerateIzin(user: UserAccount, reasonInput: string) {
   await telegram.sendChatAction(user.chatId, "typing");
   await telegram.sendMessage(
@@ -326,13 +423,13 @@ async function handleGenerateIzin(user: UserAccount, reasonInput: string) {
     saveUser(user);
 
     const message = `📋 *PREVIEW LAPORAN IZIN (${today})*
-Status: *Tidak Hadir Dengan Keterangan (ON_LEAVE)*
+Status: *2. Tidak Hadir Dengan Keterangan (ON_LEAVE)*
 
-📄 *Alasan / Keterangan* (${draft.alasan_tidak_hadir?.length || 0} karakter):
+📄 *Alasan Tidak Hadir* (${draft.alasan_tidak_hadir?.length || 0} karakter):
 ${draft.alasan_tidak_hadir}
 
 ---------------------------------
-Apakah Anda ingin mengirimkan keterangan izin ini ke Kemnaker?`;
+Apakah Anda ingin mengirimkan laporan izin ini ke Monev Kemnaker?`;
 
     return telegram.sendMessage(user.chatId, message, {
       reply_markup: {
@@ -354,17 +451,50 @@ Apakah Anda ingin mengirimkan keterangan izin ini ke Kemnaker?`;
   }
 }
 
+/**
+ * Handler Opsi 3: Tidak Hadir Tanpa Keterangan (ABSENT)
+ */
+async function handlePrepareAbsent(user: UserAccount) {
+  const today = getTodayDateString();
+
+  const draft: UserDraftReport = {
+    date: today,
+    status: "ABSENT",
+  };
+
+  user.draftReport = draft;
+  user.step = "awaiting_confirm";
+  saveUser(user);
+
+  const message = `⚠️ *KONFIRMASI PRESENSI (${today})*
+Status: *3. Tidak Hadir Tanpa Keterangan (ABSENT)*
+
+_Catatan: Pada opsi ini, Anda tercatat tidak hadir tanpa alasan/surat keterangan dan tidak memerlukan isian narasi laporan harian._
+
+---------------------------------
+Apakah Anda yakin ingin mengirimkan status ketidakhadiran tanpa keterangan ini ke Kemnaker?`;
+
+  return telegram.sendMessage(user.chatId, message, {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🚀 Ya, Kirim Tanpa Keterangan", callback_data: "SUBMIT_REPORT" }],
+        [{ text: "❌ Batalkan", callback_data: "CANCEL_REPORT" }],
+      ],
+    },
+  });
+}
+
 async function handleRegenerateDraft(user: UserAccount, messageId?: number) {
   if (!user.draftReport || !user.draftReport.rawInput) {
     return telegram.sendMessage(
       user.chatId,
-      "⚠️ Tidak ada draft yang bisa dibuat ulang. Silakan kirimkan poin kegiatan baru Anda."
+      "⚠️ Tidak ada draft yang bisa dibuat ulang. Silakan pilih menu presensi kembali."
     );
   }
 
   if (user.draftReport.status === "ON_LEAVE") {
     return handleGenerateIzin(user, user.draftReport.rawInput);
-  } else {
+  } else if (user.draftReport.status === "PRESENT") {
     return handleGenerateHadir(user, user.draftReport.rawInput);
   }
 }
@@ -373,7 +503,7 @@ async function handleConfirmSubmit(user: UserAccount, messageId?: number) {
   if (!user.draftReport) {
     return telegram.sendMessage(
       user.chatId,
-      "⚠️ Tidak ada draft laporan yang siap dikirim. Silakan ketik poin kegiatan Anda hari ini terlebih dahulu."
+      "⚠️ Tidak ada draft presensi yang siap dikirim. Silakan pilih menu presensi terlebih dahulu."
     );
   }
 
@@ -407,7 +537,12 @@ async function handleConfirmSubmit(user: UserAccount, messageId?: number) {
   const submitPayload = {
     date: draft.date,
     status: draft.status,
-    activity_log: draft.status === "PRESENT" ? draft.uraian_aktivitas : draft.alasan_tidak_hadir,
+    activity_log:
+      draft.status === "PRESENT"
+        ? draft.uraian_aktivitas
+        : draft.status === "ON_LEAVE"
+        ? draft.alasan_tidak_hadir
+        : undefined,
     lesson_learned: draft.status === "PRESENT" ? draft.pembelajaran : undefined,
     obstacles: draft.status === "PRESENT" ? draft.kendala : undefined,
     leave_reason: draft.status === "ON_LEAVE" ? draft.alasan_tidak_hadir : undefined,
@@ -422,6 +557,13 @@ async function handleConfirmSubmit(user: UserAccount, messageId?: number) {
     );
   }
 
+  const statusTitle =
+    draft.status === "PRESENT"
+      ? "Hadir (PRESENT)"
+      : draft.status === "ON_LEAVE"
+      ? "Tidak Hadir Dengan Keterangan (ON_LEAVE)"
+      : "Tidak Hadir Tanpa Keterangan (ABSENT)";
+
   // Success! Clear draft
   user.draftReport = null;
   user.step = "idle";
@@ -429,9 +571,7 @@ async function handleConfirmSubmit(user: UserAccount, messageId?: number) {
 
   return telegram.sendMessage(
     user.chatId,
-    `🎉 *ALHAMDULILLAH, ABSENSI BERHASIL DIKIRIM!* ✅\n\n📅 Tanggal: *${draft.date}*\n📌 Status: *${
-      draft.status === "PRESENT" ? "Hadir" : "Tidak Hadir Dengan Keterangan"
-    }*\n\nLaporan Monev harian Anda telah tercatat resmi di sistem MagangHub Kemnaker. Sampai jumpa besok! 👋✨`
+    `🎉 *ALHAMDULILLAH, PRESENSI BERHASIL DIKIRIM!* ✅\n\n📅 Tanggal: *${draft.date}*\n📌 Status: *${statusTitle}*\n\nLaporan Monev harian Anda telah tercatat resmi di sistem MagangHub Kemnaker. Sampai jumpa besok! 👋✨`
   );
 }
 
@@ -443,23 +583,33 @@ function sendHelpMenu(user: UserAccount) {
 
 Status Akun: *${statusIcon}*
 
-*Cara Cepat Absen Harian:*
-1️⃣ Cukup kirim poin-poin kegiatan Anda ke chat ini:
-_Contoh: "Hari ini slicing UI dashboard, integrasi Bot Telegram, fixing bug CORS"_
-2️⃣ Bot AI akan menyusun 3 bagian laporan (Uraian, Pembelajaran, Kendala $\\ge$ 100 karakter).
-3️⃣ Klik tombol *[ 🚀 Kirim Absensi Sekarang ]*.
+*3 Macam Opsi Presensi Monev:*
+1️⃣ *Hadir (PRESENT)*:
+Kirimkan poin kegiatan Anda ke chat (atau ketik \`/hadir <poin>\`). AI akan menyusun 3 bagian narasi formal (Uraian, Pembelajaran, Kendala minimal 100 karakter).
+
+2️⃣ *Tidak Hadir Dengan Keterangan (ON_LEAVE)*:
+Ketik \`/izin <alasan>\` (misal: \`/izin Sakit demam berobat ke dokter\`). AI akan menyusun narasi keterangan izin resmi.
+
+3️⃣ *Tidak Hadir Tanpa Keterangan (ABSENT)*:
+Ketik \`/alpha\` atau klik tombol presensi tanpa keterangan di bawah.
 
 *Daftar Perintah:*
 - \`/login\` : Menghubungkan akun SIAPkerja Kemnaker
-- \`/status\` : Cek status koneksi & tanggal hari ini
+- \`/status\` : Cek status akun & draft aktif
+- \`/hadir <kegiatan>\` : Absen hadir
 - \`/izin <alasan>\` : Absen izin tidak hadir
+- \`/alpha\` : Absen tidak hadir tanpa keterangan
 - \`/logout\` : Menghapus data akun dari bot
 - \`/help\` : Menampilkan panduan ini`;
 
   return telegram.sendMessage(user.chatId, message, {
     reply_markup: {
       inline_keyboard: hasAccount
-        ? [[{ text: "📊 Cek Status Akun", callback_data: "BTN_HELP" }]]
+        ? [
+            [{ text: "🟢 1. Absen Hadir", callback_data: "MENU_HADIR" }],
+            [{ text: "🟡 2. Izin (Dengan Keterangan)", callback_data: "MENU_IZIN" }],
+            [{ text: "🔴 3. Tanpa Keterangan (Alpha)", callback_data: "MENU_ABSENT" }],
+          ]
         : [[{ text: "🔐 Hubungkan Akun Sekarang", callback_data: "BTN_LOGIN" }]],
     },
   });

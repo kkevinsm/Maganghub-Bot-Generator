@@ -51,7 +51,7 @@ export interface TelegramUpdate {
 
 export interface UserDraftReport {
   date: string; // YYYY-MM-DD
-  status: "PRESENT" | "ON_LEAVE";
+  status: "PRESENT" | "ON_LEAVE" | "ABSENT";
   uraian_aktivitas?: string;
   pembelajaran?: string;
   kendala?: string;
@@ -67,7 +67,13 @@ export interface UserAccount {
   password?: string; // Encrypted Kemnaker Password
   token?: string; // Cached token
   draftReport?: UserDraftReport | null;
-  step?: "idle" | "awaiting_login_email" | "awaiting_login_password" | "awaiting_confirm";
+  step?:
+    | "idle"
+    | "awaiting_login_email"
+    | "awaiting_login_password"
+    | "awaiting_hadir_input"
+    | "awaiting_izin_input"
+    | "awaiting_confirm";
   tempLoginEmail?: string;
   reminderEnabled?: boolean;
   createdAt?: string;
