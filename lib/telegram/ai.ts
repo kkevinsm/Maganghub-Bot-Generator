@@ -1,6 +1,6 @@
 /**
  * AI Generator untuk Telegram Bot Mobogen
- * Menggunakan Google Gemini API untuk menyusun narasi laporan Monev Kemnaker.
+ * Menggunakan Google Gemini API dengan optimasi Auto Fast-Race & Zero-Thinking Delay (< 1 detik).
  */
 
 const SYSTEM_INSTRUCTION_HADIR = `Kamu adalah asisten pelaporan harian Monitoring dan Evaluasi (Monev) untuk peserta program Magang Merdeka dari Kementerian Ketenagakerjaan Republik Indonesia (Kemnaker) melalui platform MagangHub bernama Mobogen.
@@ -64,18 +64,52 @@ export interface GeneratedMonevReport {
 export async function validateGeminiApiKey(apiKey: string): Promise<boolean> {
   if (!apiKey || !apiKey.trim()) return false;
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey.trim()}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey.trim()}`;
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: "hi" }] }],
+        contents: [{ parts: [{ text: "ping" }] }],
         generationConfig: { maxOutputTokens: 5 },
       }),
     });
     return res.ok;
   } catch {
     return false;
+  }
+}
+
+async function tryFetchModel(
+  model: string,
+  apiKey: string,
+  requestBody: string,
+  timeoutMs: number = 6000
+): Promise<{ text: string; model: string } | null> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: requestBody,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) {
+        return { text, model };
+      }
+    }
+    return null;
+  } catch {
+    clearTimeout(timeoutId);
+    return null;
   }
 }
 
@@ -91,12 +125,20 @@ export async function generateMonevFromText(
     );
   }
 
-  const primaryModel = process.env.GEMINI_MODEL || "gemini-flash-latest";
-  const fallbackModels = [
-    primaryModel,
-    "gemini-3.7-flash",
-    "gemini-3.5-flash-lite",
+  // Model-model tercepat (Flash Lite & Flash dengan zero-thinking latency)
+  const speedTierModels = [
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-2.0-flash",
+    "gemini-flash-latest",
   ];
+
+  // Prioritaskan model pilihan jika user mengatur GEMINI_MODEL
+  const preferredModel = process.env.GEMINI_MODEL;
+  if (preferredModel && !speedTierModels.includes(preferredModel)) {
+    speedTierModels.unshift(preferredModel);
+  }
 
   const systemInstruction = isIzin ? SYSTEM_INSTRUCTION_IZIN : SYSTEM_INSTRUCTION_HADIR;
 
@@ -104,6 +146,7 @@ export async function generateMonevFromText(
     ? `Status Kehadiran: Tidak Hadir Dengan Keterangan\nCatatan Singkat User:\n${input}\n\nBuatkan narasi formal Alasan Tidak Hadir (minimal 100 karakter) sesuai standar Monev Kemnaker.`
     : `Status Kehadiran: Hadir\nCatatan Aktivitas Harian:\n${input}\n\nBuatkan 3 bagian laporan Monev harian (Uraian Aktivitas, Pembelajaran, Kendala masing-masing minimal 100 karakter).`;
 
+  // Matikan thinking_budget agar respons langsung instan (< 1 detik) tanpa overhead reasoning
   const requestBody = JSON.stringify({
     system_instruction: {
       parts: [{ text: systemInstruction }],
@@ -116,56 +159,59 @@ export async function generateMonevFromText(
     generationConfig: {
       temperature: 0.7,
       topP: 0.9,
-      topK: 40,
-      maxOutputTokens: 1024,
+      maxOutputTokens: 600,
       responseMimeType: "application/json",
+      thinkingConfig: {
+        thinkingBudget: 0,
+      },
     },
   });
 
-  let lastError = "";
+  // Fast Parallel Race: Coba 2 model tercepat sekaligus secara paralel
+  const fastRacePromises = [
+    tryFetchModel(speedTierModels[0], apiKey, requestBody, 5000),
+    tryFetchModel(speedTierModels[1], apiKey, requestBody, 5000),
+  ];
 
-  for (const model of fallbackModels) {
+  // Ambil respons pertama yang selesai dan berhasil
+  const raceResult = await Promise.race([
+    fastRacePromises[0].then((res) => (res ? res : fastRacePromises[1])),
+    fastRacePromises[1].then((res) => (res ? res : fastRacePromises[0])),
+  ]);
+
+  if (raceResult && raceResult.text) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: requestBody,
-      });
+      const parsed = JSON.parse(raceResult.text);
+      return {
+        uraian_aktivitas: parsed.uraian_aktivitas || "",
+        pembelajaran: parsed.pembelajaran || "",
+        kendala: parsed.kendala || "",
+        alasan_tidak_hadir: parsed.alasan_tidak_hadir || "",
+        modelUsed: raceResult.model,
+      };
+    } catch {
+      // Continue to sequential fallback if JSON parse fails
+    }
+  }
 
-      if (res.ok) {
-        const data = await res.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) continue;
-
-        const parsed = JSON.parse(text);
+  // Fallback Waterfall jika race tercepat sibuk/terkendala
+  for (const model of speedTierModels) {
+    const res = await tryFetchModel(model, apiKey, requestBody, 6000);
+    if (res && res.text) {
+      try {
+        const parsed = JSON.parse(res.text);
         return {
           uraian_aktivitas: parsed.uraian_aktivitas || "",
           pembelajaran: parsed.pembelajaran || "",
           kendala: parsed.kendala || "",
           alasan_tidak_hadir: parsed.alasan_tidak_hadir || "",
-          modelUsed: model,
+          modelUsed: res.model,
         };
-      }
-
-      if (res.status === 503 || res.status === 429) {
-        lastError = `Model ${model} overloaded`;
+      } catch {
         continue;
       }
-
-      if (res.status === 400 || res.status === 403 || res.status === 401) {
-        const errorData = await res.json().catch(() => null);
-        throw new Error(
-          errorData?.error?.message || "Gemini API Key tidak valid atau kuota habis."
-        );
-      }
-    } catch (err) {
-      if (err instanceof Error && (err.message.includes("tidak valid") || err.message.includes("API key"))) {
-        throw err;
-      }
-      lastError = err instanceof Error ? err.message : String(err);
     }
   }
 
-  throw new Error(`Gagal menghasilkan laporan AI: ${lastError || "Semua model Gemini sibuk."}`);
+  throw new Error("Semua model Gemini sedang sibuk atau API Key tidak valid. Silakan coba beberapa saat lagi.");
 }

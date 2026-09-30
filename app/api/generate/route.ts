@@ -53,6 +53,40 @@ FORMAT OUTPUT (JSON):
 
 Hanya kembalikan JSON valid, tanpa blok kode, tanpa backtick, tanpa penjelasan tambahan.`;
 
+async function tryFetchModel(
+  model: string,
+  apiKey: string,
+  requestBody: string,
+  timeoutMs: number = 6000
+): Promise<{ text: string; model: string } | null> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: requestBody,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) {
+        return { text, model };
+      }
+    }
+    return null;
+  } catch {
+    clearTimeout(timeoutId);
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -83,29 +117,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Model fallback chain: try primary first, then alternatives if overloaded
-    const primaryModel = process.env.GEMINI_MODEL || "gemini-flash-latest";
-    const fallbackModels = [
-      primaryModel,
-      "gemini-3.7-flash",
-      "gemini-3.5-flash-lite",
+    // Tier model tercepat (Flash Lite & Flash dengan zero-thinking latency)
+    const speedTierModels = [
+      "gemini-2.5-flash-lite",
+      "gemini-2.5-flash",
+      "gemini-2.0-flash-lite",
+      "gemini-2.0-flash",
+      "gemini-flash-latest",
     ];
+
+    const preferredModel = process.env.GEMINI_MODEL;
+    if (preferredModel && !speedTierModels.includes(preferredModel)) {
+      speedTierModels.unshift(preferredModel);
+    }
 
     const systemInstruction = isIzin
       ? SYSTEM_INSTRUCTION_IZIN
       : SYSTEM_INSTRUCTION_HADIR;
 
     const userPrompt = isIzin
-      ? `Status Kehadiran: Tidak Hadir Dengan Keterangan
-Catatan Singkat User:
-${aktivitas}
-
-Buatkan narasi formal Alasan Tidak Hadir (minimal 100 karakter) sesuai standar Monev Kemnaker.`
-      : `Status Kehadiran: Hadir
-Catatan Aktivitas Harian:
-${aktivitas}
-
-Buatkan 3 bagian laporan Monev harian (Uraian Aktivitas, Pembelajaran, Kendala masing-masing minimal 100 karakter).`;
+      ? `Status Kehadiran: Tidak Hadir Dengan Keterangan\nCatatan Singkat User:\n${aktivitas}\n\nBuatkan narasi formal Alasan Tidak Hadir (minimal 100 karakter) sesuai standar Monev Kemnaker.`
+      : `Status Kehadiran: Hadir\nCatatan Aktivitas Harian:\n${aktivitas}\n\nBuatkan 3 bagian laporan Monev harian (Uraian Aktivitas, Pembelajaran, Kendala masing-masing minimal 100 karakter).`;
 
     const requestBody = JSON.stringify({
       system_instruction: {
@@ -119,71 +151,51 @@ Buatkan 3 bagian laporan Monev harian (Uraian Aktivitas, Pembelajaran, Kendala m
       generationConfig: {
         temperature: 0.7,
         topP: 0.9,
-        topK: 40,
-        maxOutputTokens: 1024,
+        maxOutputTokens: 600,
         responseMimeType: "application/json",
+        thinkingConfig: {
+          thinkingBudget: 0,
+        },
       },
     });
 
-    let geminiData = null;
-    let usedModel = primaryModel;
-    let lastError = "";
+    // Fast Parallel Race
+    const fastRacePromises = [
+      tryFetchModel(speedTierModels[0], apiKey, requestBody, 5000),
+      tryFetchModel(speedTierModels[1], apiKey, requestBody, 5000),
+    ];
 
-    for (const model of fallbackModels) {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const raceResult = await Promise.race([
+      fastRacePromises[0].then((res) => (res ? res : fastRacePromises[1])),
+      fastRacePromises[1].then((res) => (res ? res : fastRacePromises[0])),
+    ]);
 
-      const geminiResponse = await fetch(geminiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: requestBody,
-      });
+    let chosenResult = raceResult;
 
-      if (geminiResponse.ok) {
-        geminiData = await geminiResponse.json();
-        usedModel = model;
-        break;
+    // Sequential fallback if race failed
+    if (!chosenResult || !chosenResult.text) {
+      for (const model of speedTierModels) {
+        const res = await tryFetchModel(model, apiKey, requestBody, 6000);
+        if (res && res.text) {
+          chosenResult = res;
+          break;
+        }
       }
-
-      // If overloaded (503) or rate limited (429), try next model
-      if (geminiResponse.status === 503 || geminiResponse.status === 429) {
-        const errorData = await geminiResponse.json().catch(() => ({}));
-        lastError = errorData?.error?.message || `Model ${model} sedang sibuk`;
-        console.log(`Model ${model} overloaded, trying next fallback...`);
-        continue;
-      }
-
-      // For other errors, return immediately
-      const errorData = await geminiResponse.json().catch(() => ({}));
-      const errorMessage =
-        errorData?.error?.message || `Gemini API error: ${geminiResponse.status}`;
-      return Response.json({ error: errorMessage }, { status: geminiResponse.status });
     }
 
-    if (!geminiData) {
+    if (!chosenResult || !chosenResult.text) {
       return Response.json(
-        { error: `Semua model sedang sibuk. Coba lagi dalam beberapa saat. (${lastError})` },
+        { error: "Semua model AI sedang sibuk. Silakan coba lagi dalam beberapa saat." },
         { status: 503 }
       );
     }
 
-    // Extract generated text
-    const generatedText =
-      geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!generatedText) {
-      return Response.json(
-        { error: "Gagal mendapatkan respons dari AI. Silakan coba lagi." },
-        { status: 500 }
-      );
-    }
-
-    // Parse JSON response
-    const parsed = JSON.parse(generatedText);
+    const parsed = JSON.parse(chosenResult.text);
 
     if (isIzin) {
       return Response.json({
         alasan_tidak_hadir: parsed.alasan_tidak_hadir || "",
-        model: usedModel,
+        model: chosenResult.model,
       });
     }
 
@@ -191,7 +203,7 @@ Buatkan 3 bagian laporan Monev harian (Uraian Aktivitas, Pembelajaran, Kendala m
       uraian_aktivitas: parsed.uraian_aktivitas || "",
       pembelajaran: parsed.pembelajaran || "",
       kendala: parsed.kendala || "",
-      model: usedModel,
+      model: chosenResult.model,
     });
   } catch (error: unknown) {
     console.error("Generate API error:", error);
