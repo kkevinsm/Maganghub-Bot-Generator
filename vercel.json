@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/telegram/reminder",
-      "schedule": "0 9 * * 1-5"
+      "schedule": "30 9 * * 1-5"
     }
   ]
 }

@@ -88,6 +88,27 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       );
     }
 
+    if (data === "TOGGLE_REMINDER") {
+      user.reminderEnabled = user.reminderEnabled === false ? true : false;
+      saveUser(user);
+      const isEnabled = user.reminderEnabled;
+      if (cb.message?.message_id) {
+        return telegram.editMessageText(
+          chatId,
+          cb.message.message_id,
+          isEnabled
+            ? "🔔 *Pengingat Harian (16:30 WIB) Diaktifkan!*\n\nAnda akan menerima notifikasi presensi otomatis setiap sore."
+            : "🔕 *Pengingat Harian (16:30 WIB) Dinonaktifkan.*"
+        );
+      }
+      return telegram.sendMessage(
+        chatId,
+        isEnabled
+          ? "🔔 *Pengingat Harian (16:30 WIB) Diaktifkan!*"
+          : "🔕 *Pengingat Harian (16:30 WIB) Dinonaktifkan.*"
+      );
+    }
+
     if (data === "BTN_LOGIN") {
       user.step = "awaiting_login_email";
       saveUser(user);
@@ -263,11 +284,45 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       draftStatus = `\n\n📝 *Draft Tersimpan*: ${statusLabel} (Siap dikirim)`;
     }
 
+    const reminderStatus = user.reminderEnabled !== false ? "✅ Aktif (Setiap 16:30 WIB)" : "❌ Nonaktif";
+
     return telegram.sendMessage(
       chatId,
       `📊 *Status Bot Mobogen*\n\n👤 Nama: *${user.name || "Peserta"}*\n🔗 Akun Kemnaker: ${
         hasAccount ? `✅ Terhubung (${emailDecrypted})` : "❌ Belum login"
-      }\n📅 Tanggal Hari Ini: *${getTodayDateString()}*${draftStatus}`
+      }\n⏰ Pengingat Sore (16:30 WIB): *${reminderStatus}*\n📅 Tanggal Hari Ini: *${getTodayDateString()}*${draftStatus}`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: user.reminderEnabled !== false ? "🔕 Matikan Pengingat 16:30" : "🔔 Aktifkan Pengingat 16:30",
+                callback_data: "TOGGLE_REMINDER",
+              },
+            ],
+            [{ text: "📋 Menu Utama", callback_data: "BTN_MENU" }],
+          ],
+        },
+      }
+    );
+  }
+
+  // Command: /reminder on / off
+  if (lowerText === "/reminder on" || lowerText === "/reminder aktif") {
+    user.reminderEnabled = true;
+    saveUser(user);
+    return telegram.sendMessage(
+      chatId,
+      "🔔 *Pengingat Harian Diaktifkan!*\n\nBot akan otomatis mengingatkan Anda untuk presensi setiap hari kerja pukul *16:30 WIB*."
+    );
+  }
+
+  if (lowerText === "/reminder off" || lowerText === "/reminder nonaktif") {
+    user.reminderEnabled = false;
+    saveUser(user);
+    return telegram.sendMessage(
+      chatId,
+      "🔕 *Pengingat Harian Dinonaktifkan.*\n\nKetik `/reminder on` kapan saja untuk mengaktifkannya kembali."
     );
   }
 

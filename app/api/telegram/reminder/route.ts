@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Cron / Reminder Endpoint: Mengirim pesan pengingat absensi harian ke semua peserta
- * Dipanggil via Vercel Cron (setiap Senin-Jumat jam 16:00 WIB / 09:00 UTC)
+ * Dipanggil otomatis setiap hari pukul 16:30 WIB (09:30 UTC)
  */
 export async function GET(request: NextRequest) {
   return handleReminder(request);
@@ -33,11 +33,20 @@ async function handleReminder(request: NextRequest) {
   let failCount = 0;
 
   for (const user of eligibleUsers) {
-    const reminderText = `⏰ *PENGINGAT ABSENSI MONEV MAGANGHUB*\n\nHai *${
+    const reminderText = `⏰ *PENGINGAT PRESENSI MONEV (16:30 WIB)*\n\nHai *${
       user.name || "Sobat Magang"
-    }*! Jam kerja magang hari ini telah usai.\n\nApa saja yang kamu kerjakan hari ini? Balas pesan ini dengan poin-poin kegiatanmu (misal: _"Slicing UI dashboard dan testing API"_), dan AI Mobogen akan langsung menyusun 3 bagian laporan Monev Anda! 🚀`;
+    }*! Waktu kerja magang hari ini telah selesai.\n\nJangan lupa untuk mengisi presensi & laporan Monev MagangHub hari ini. Silakan pilih salah satu opsi di bawah atau langsung kirimkan ringkasan kegiatan Anda ke chat ini: 🚀`;
 
-    const sent = await telegram.sendMessage(user.chatId, reminderText);
+    const sent = await telegram.sendMessage(user.chatId, reminderText, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🟢 1. Absen Hadir", callback_data: "MENU_HADIR" }],
+          [{ text: "🟡 2. Izin (Dengan Keterangan)", callback_data: "MENU_IZIN" }],
+          [{ text: "🔴 3. Tanpa Keterangan (Alpha)", callback_data: "MENU_ABSENT" }],
+        ],
+      },
+    });
+
     if (sent) {
       successCount++;
     } else {
