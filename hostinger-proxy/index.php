@@ -60,10 +60,23 @@ if ($requestPath === '/api/kemnaker/login' && $_SERVER['REQUEST_METHOD'] === 'PO
             CURLOPT_TIMEOUT => 15,
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_HEADER => true,
+            CURLOPT_COOKIEJAR => $cookieFile,
+            CURLOPT_COOKIEFILE => $cookieFile,
         ]);
-        $oauthUrl = trim(curl_exec($ch));
+        $step1Res = curl_exec($ch);
+        $step1HeaderSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $step1Headers = substr($step1Res, 0, $step1HeaderSize);
+        $oauthUrl = trim(substr($step1Res, $step1HeaderSize));
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
+
+        // Extract monev cookies (especially monev_oauth_state) from headers
+        $monevCookies = [];
+        preg_match_all('/Set-Cookie:\s*([^;\r\n]+)/i', $step1Headers, $cookieMatches);
+        if (!empty($cookieMatches[1])) {
+            $monevCookies = $cookieMatches[1];
+        }
 
         // If JSON response, extract URL
         $jsonCheck = json_decode($oauthUrl, true);
@@ -283,9 +296,19 @@ if ($requestPath === '/api/kemnaker/login' && $_SERVER['REQUEST_METHOD'] === 'PO
         // Step 6: Exchange code for access_token
         $exchangeUrl = "$monevApi/auth/login/callback?" . http_build_query(['code' => $authCode, 'state' => $cbState]);
         $ch = curl_init($exchangeUrl);
+        $exchangeHeaders = [
+            'User-Agent: ' . $ua,
+            'Accept: application/json',
+            'Referer: https://monev.maganghub.kemnaker.go.id/sso/callback?code=' . urlencode($authCode) . '&state=' . urlencode($cbState),
+        ];
+        if (!empty($monevCookies)) {
+            $exchangeHeaders[] = 'Cookie: ' . implode('; ', $monevCookies);
+        }
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => ['User-Agent: ' . $ua, 'Accept: application/json'],
+            CURLOPT_HTTPHEADER => $exchangeHeaders,
+            CURLOPT_COOKIEJAR => $cookieFile,
+            CURLOPT_COOKIEFILE => $cookieFile,
             CURLOPT_TIMEOUT => 15,
             CURLOPT_SSL_VERIFYPEER => true,
         ]);
