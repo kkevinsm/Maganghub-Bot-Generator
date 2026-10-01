@@ -168,7 +168,8 @@ export async function generateMonevFromText(
     "gemini-2.0-flash",
     "gemini-1.5-flash-8b",
     "gemini-flash-latest",
-    "gemini-2.5-flash",
+    "gemini-3.8-flash",
+    "gemini-3.7-flash",
   ];
 
   // Prioritaskan model pilihan jika user mengatur GEMINI_MODEL
