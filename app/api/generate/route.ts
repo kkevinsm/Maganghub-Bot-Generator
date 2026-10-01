@@ -57,8 +57,8 @@ async function tryFetchModel(
   model: string,
   apiKey: string,
   requestBody: string,
-  timeoutMs: number = 6000
-): Promise<{ text: string; model: string } | null> {
+  timeoutMs: number = 8000
+): Promise<{ text?: string; model?: string; error?: string; status?: number }> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -73,17 +73,20 @@ async function tryFetchModel(
 
     clearTimeout(timeoutId);
 
-    if (res.ok) {
-      const data = await res.json();
+    const data = await res.json().catch(() => null);
+
+    if (res.ok && data) {
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (text) {
         return { text, model };
       }
     }
-    return null;
-  } catch {
+
+    const errMsg = data?.error?.message || `HTTP ${res.status}`;
+    return { error: errMsg, status: res.status };
+  } catch (err) {
     clearTimeout(timeoutId);
-    return null;
+    return { error: err instanceof Error ? err.message : "Timeout", status: 500 };
   }
 }
 
@@ -106,7 +109,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Determine API key: prefer custom key from client, fallback to env
-    const apiKey = customApiKey || process.env.GEMINI_API_KEY;
+    const apiKey = (customApiKey || "").trim() || process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return Response.json(
         {
@@ -117,13 +120,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Tier model tercepat (Flash Lite & Flash dengan zero-thinking latency)
+    // Model kuota tinggi (1.500 RPD) sebagai prioritas utama
     const speedTierModels = [
-      "gemini-2.5-flash-lite",
-      "gemini-2.5-flash",
-      "gemini-2.0-flash-lite",
+      "gemini-1.5-flash",
       "gemini-2.0-flash",
+      "gemini-1.5-flash-8b",
       "gemini-flash-latest",
+      "gemini-2.5-flash",
     ];
 
     const preferredModel = process.env.GEMINI_MODEL;
@@ -156,34 +159,39 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Fast Parallel Race
-    const fastRacePromises = [
-      tryFetchModel(speedTierModels[0], apiKey, requestBody, 5000),
-      tryFetchModel(speedTierModels[1], apiKey, requestBody, 5000),
-    ];
+    let chosenResult = null;
+    let lastError = "";
 
-    const raceResult = await Promise.race([
-      fastRacePromises[0].then((res) => (res ? res : fastRacePromises[1])),
-      fastRacePromises[1].then((res) => (res ? res : fastRacePromises[0])),
-    ]);
-
-    let chosenResult = raceResult;
-
-    // Sequential fallback if race failed
-    if (!chosenResult || !chosenResult.text) {
-      for (const model of speedTierModels) {
-        const res = await tryFetchModel(model, apiKey, requestBody, 6000);
-        if (res && res.text) {
-          chosenResult = res;
-          break;
+    for (const model of speedTierModels) {
+      const res = await tryFetchModel(model, apiKey, requestBody, 8000);
+      if (res && res.text) {
+        chosenResult = res;
+        break;
+      }
+      if (res && res.error) {
+        lastError = `[${model}] ${res.error}`;
+        if (res.status === 400 && res.error.includes("API key not valid")) {
+          return Response.json(
+            { error: "API Key Gemini Anda tidak valid. Silakan periksa kembali key di Google AI Studio." },
+            { status: 400 }
+          );
         }
       }
     }
 
     if (!chosenResult || !chosenResult.text) {
+      const isQuotaError =
+        lastError.includes("Quota") ||
+        lastError.includes("RESOURCE_EXHAUSTED") ||
+        lastError.includes("429");
+
       return Response.json(
-        { error: "Semua model AI sedang sibuk. Silakan coba lagi dalam beberapa saat." },
-        { status: 503 }
+        {
+          error: isQuotaError
+            ? "Limit (kuota harian) pada Google API Key Anda telah habis (Rate Limit Exceeded). Buat API Key baru di https://aistudio.google.com/app/apikey"
+            : `Gagal menghasilkan laporan AI (${lastError || "Semua model sibuk"}). Coba lagi beberapa saat lagi.`,
+        },
+        { status: isQuotaError ? 429 : 503 }
       );
     }
 

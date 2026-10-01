@@ -1,6 +1,6 @@
 /**
  * AI Generator untuk Telegram Bot Mobogen
- * Menggunakan Google Gemini API dengan optimasi Auto Fast-Race & Zero-Thinking Delay (< 1 detik).
+ * Menggunakan Google Gemini API dengan model kuota tinggi (1.500 RPD) & penanganan error yang presisi.
  */
 
 const SYSTEM_INSTRUCTION_HADIR = `Kamu adalah asisten pelaporan harian Monitoring dan Evaluasi (Monev) untuk peserta program Magang Merdeka dari Kementerian Ketenagakerjaan Republik Indonesia (Kemnaker) melalui platform MagangHub bernama Mobogen.
@@ -61,21 +61,55 @@ export interface GeneratedMonevReport {
   modelUsed?: string;
 }
 
-export async function validateGeminiApiKey(apiKey: string): Promise<boolean> {
-  if (!apiKey || !apiKey.trim()) return false;
+export interface ApiKeyValidationResult {
+  valid: boolean;
+  error?: string;
+}
+
+/**
+ * Validasi API Key Gemini ke Google API
+ */
+export async function validateGeminiApiKey(apiKey: string): Promise<ApiKeyValidationResult> {
+  const cleanKey = (apiKey || "").trim();
+  if (!cleanKey) {
+    return { valid: false, error: "API Key tidak boleh kosong." };
+  }
+
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey.trim()}`;
+    // Gunakan model standar gemini-1.5-flash yang dijamin valid di v1beta API
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${cleanKey}`;
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: "ping" }] }],
+        contents: [{ parts: [{ text: "hi" }] }],
         generationConfig: { maxOutputTokens: 5 },
       }),
     });
-    return res.ok;
-  } catch {
-    return false;
+
+    if (res.ok) {
+      return { valid: true };
+    }
+
+    const data = await res.json().catch(() => null);
+    const msg =
+      data?.error?.message ||
+      `Google API HTTP ${res.status}: ${res.statusText}`;
+
+    if (res.status === 400 || msg.includes("API_KEY_INVALID") || msg.includes("API key not valid")) {
+      return { valid: false, error: "API Key tidak valid. Pastikan menyalin key asli dari Google AI Studio." };
+    }
+
+    if (res.status === 429 || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("Quota")) {
+      return { valid: false, error: "Kuota harian (limit) pada Google API Key ini telah habis (Rate Limit Exceeded)." };
+    }
+
+    return { valid: false, error: msg };
+  } catch (err) {
+    return {
+      valid: false,
+      error: err instanceof Error ? err.message : "Gagal terhubung ke Google Gemini API.",
+    };
   }
 }
 
@@ -83,8 +117,8 @@ async function tryFetchModel(
   model: string,
   apiKey: string,
   requestBody: string,
-  timeoutMs: number = 6000
-): Promise<{ text: string; model: string } | null> {
+  timeoutMs: number = 7000
+): Promise<{ text?: string; model?: string; error?: string; status?: number }> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -99,17 +133,20 @@ async function tryFetchModel(
 
     clearTimeout(timeoutId);
 
-    if (res.ok) {
-      const data = await res.json();
+    const data = await res.json().catch(() => null);
+
+    if (res.ok && data) {
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (text) {
         return { text, model };
       }
     }
-    return null;
-  } catch {
+
+    const errMsg = data?.error?.message || `HTTP ${res.status}`;
+    return { error: errMsg, status: res.status };
+  } catch (err) {
     clearTimeout(timeoutId);
-    return null;
+    return { error: err instanceof Error ? err.message : "Timeout", status: 500 };
   }
 }
 
@@ -125,13 +162,13 @@ export async function generateMonevFromText(
     );
   }
 
-  // Model-model tercepat (Flash Lite & Flash dengan zero-thinking latency)
+  // Model kuota tinggi (1.500 RPD) sebagai prioritas utama
   const speedTierModels = [
-    "gemini-2.5-flash-lite",
-    "gemini-2.5-flash",
-    "gemini-2.0-flash-lite",
+    "gemini-1.5-flash",
     "gemini-2.0-flash",
+    "gemini-1.5-flash-8b",
     "gemini-flash-latest",
+    "gemini-2.5-flash",
   ];
 
   // Prioritaskan model pilihan jika user mengatur GEMINI_MODEL
@@ -146,7 +183,6 @@ export async function generateMonevFromText(
     ? `Status Kehadiran: Tidak Hadir Dengan Keterangan\nCatatan Singkat User:\n${input}\n\nBuatkan narasi formal Alasan Tidak Hadir (minimal 100 karakter) sesuai standar Monev Kemnaker.`
     : `Status Kehadiran: Hadir\nCatatan Aktivitas Harian:\n${input}\n\nBuatkan 3 bagian laporan Monev harian (Uraian Aktivitas, Pembelajaran, Kendala masing-masing minimal 100 karakter).`;
 
-  // Matikan thinking_budget agar respons langsung instan (< 1 detik) tanpa overhead reasoning
   const requestBody = JSON.stringify({
     system_instruction: {
       parts: [{ text: systemInstruction }],
@@ -164,36 +200,10 @@ export async function generateMonevFromText(
     },
   });
 
-  // Fast Parallel Race: Coba 2 model tercepat sekaligus secara paralel
-  const fastRacePromises = [
-    tryFetchModel(speedTierModels[0], apiKey, requestBody, 5000),
-    tryFetchModel(speedTierModels[1], apiKey, requestBody, 5000),
-  ];
+  let lastError = "";
 
-  // Ambil respons pertama yang selesai dan berhasil
-  const raceResult = await Promise.race([
-    fastRacePromises[0].then((res) => (res ? res : fastRacePromises[1])),
-    fastRacePromises[1].then((res) => (res ? res : fastRacePromises[0])),
-  ]);
-
-  if (raceResult && raceResult.text) {
-    try {
-      const parsed = JSON.parse(raceResult.text);
-      return {
-        uraian_aktivitas: parsed.uraian_aktivitas || "",
-        pembelajaran: parsed.pembelajaran || "",
-        kendala: parsed.kendala || "",
-        alasan_tidak_hadir: parsed.alasan_tidak_hadir || "",
-        modelUsed: raceResult.model,
-      };
-    } catch {
-      // Continue to sequential fallback if JSON parse fails
-    }
-  }
-
-  // Fallback Waterfall jika race tercepat sibuk/terkendala
   for (const model of speedTierModels) {
-    const res = await tryFetchModel(model, apiKey, requestBody, 6000);
+    const res = await tryFetchModel(model, apiKey, requestBody, 8000);
     if (res && res.text) {
       try {
         const parsed = JSON.parse(res.text);
@@ -208,7 +218,18 @@ export async function generateMonevFromText(
         continue;
       }
     }
+
+    if (res && res.error) {
+      lastError = `[${model}] ${res.error}`;
+      if (res.status === 400 && res.error.includes("API key not valid")) {
+        throw new Error("API Key Gemini Anda tidak valid. Silakan periksa kembali key di Google AI Studio.");
+      }
+    }
   }
 
-  throw new Error("Semua model Gemini sedang sibuk atau API Key tidak valid. Silakan coba beberapa saat lagi.");
+  if (lastError.includes("Quota") || lastError.includes("RESOURCE_EXHAUSTED") || lastError.includes("429")) {
+    throw new Error("Limit (kuota harian) pada Google API Key Anda telah habis. Gunakan API Key baru dari https://aistudio.google.com/app/apikey.");
+  }
+
+  throw new Error(`Gagal menghasilkan laporan AI: ${lastError || "Semua model Gemini sibuk."}`);
 }
