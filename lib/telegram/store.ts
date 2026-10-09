@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { UserAccount } from "./types";
 
-const DATA_DIR = path.join(process.cwd(), ".data");
+const DATA_DIR = process.env.VERCEL ? "/tmp" : path.join(process.cwd(), ".data");
 const STORE_FILE = path.join(DATA_DIR, "telegram_users.json");
 
 // In-memory cache for fast read/write

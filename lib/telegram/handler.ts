@@ -315,23 +315,29 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     );
   }
 
-  // Multi-step Login: Menunggu Email
-  if (user.step === "awaiting_login_email") {
+  // Smart Auto-Detect Email / Username saat user belum login
+  const isEmailOrUser =
+    lowerText.includes("@") ||
+    /^[0-9]{10,16}$/.test(lowerText) ||
+    user.step === "awaiting_login_email";
+
+  if (!user.username && isEmailOrUser && !lowerText.startsWith("/")) {
     user.tempLoginEmail = rawText;
     user.step = "awaiting_login_password";
     saveUser(user);
     return telegram.sendMessage(
       chatId,
-      "🔑 Sekarang, silakan masukkan *Password* akun Kemnaker Anda:\n_(Password dienkripsi aman secara otomatis)_"
+      `🔑 Email *${rawText}* diterima!\n\nSekarang, silakan masukkan *Password* akun SIAPkerja Kemnaker Anda:\n_(Password dienkripsi aman secara otomatis)_`
     );
   }
 
   // Multi-step Login: Menunggu Password
-  if (user.step === "awaiting_login_password") {
+  if (user.step === "awaiting_login_password" || (user.tempLoginEmail && !user.username && !lowerText.startsWith("/"))) {
     const email = user.tempLoginEmail || "";
     const password = rawText;
     user.tempLoginEmail = undefined;
     user.step = "idle";
+    saveUser(user);
 
     await telegram.sendChatAction(chatId, "typing");
     await telegram.sendMessage(chatId, "⏳ Sedang memverifikasi akun Anda ke server Kemnaker...");
