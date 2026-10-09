@@ -1,17 +1,18 @@
 @import "tailwindcss";
+@import "@mdi/font/css/materialdesignicons.min.css";
 
 @theme {
   /* Color Palette - Warm professional tones */
-  --color-primary-50: #fef7ed;
-  --color-primary-100: #fdecd4;
-  --color-primary-200: #fbd5a8;
-  --color-primary-300: #f8b870;
-  --color-primary-400: #f59337;
-  --color-primary-500: #f37a15;
-  --color-primary-600: #e4600b;
-  --color-primary-700: #bd480b;
-  --color-primary-800: #963910;
-  --color-primary-900: #793110;
+  --color-primary-50: #eef5f6;
+  --color-primary-100: #d0e4e7;
+  --color-primary-200: #a1c9ce;
+  --color-primary-300: #71aeb5;
+  --color-primary-400: #428491;
+  --color-primary-500: #134f5c;
+  --color-primary-600: #10434e;
+  --color-primary-700: #0d3740;
+  --color-primary-800: #0a2b33;
+  --color-primary-900: #082025;
 
   --color-accent-50: #eef7ff;
   --color-accent-100: #d9ecff;
@@ -42,7 +43,7 @@
   --color-warning-500: #f59e0b;
 
   /* Typography */
-  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-sans: "Poppins", var(--font-poppins), "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
 
   /* Animations */
@@ -71,8 +72,8 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(243, 122, 21, 0.2); }
-  50% { box-shadow: 0 0 20px 4px rgba(243, 122, 21, 0.15); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(19, 79, 92, 0.2); }
+  50% { box-shadow: 0 0 20px 4px rgba(19, 79, 92, 0.15); }
 }
 
 @keyframes shimmer {

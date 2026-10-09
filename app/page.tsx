@@ -65,15 +65,7 @@ function CharBadge({ count, min = 100 }: { count: number; min?: number }) {
         : "bg-red-50 text-red-600 border border-red-200"
         }`}
     >
-      {isValid ? (
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-        </svg>
-      ) : (
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01" />
-        </svg>
-      )}
+      <i className={`mdi ${isValid ? "mdi-check text-xs font-bold" : "mdi-alert-circle-outline text-xs"}`} />
       {count}/{min}
     </span>
   );
@@ -107,15 +99,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
       title={`Salin ${label}`}
       className="p-1.5 rounded-lg transition-all duration-200 hover:bg-surface-100 disabled:opacity-30 disabled:cursor-not-allowed group cursor-pointer"
     >
-      {copied ? (
-        <svg className="w-4 h-4 text-success-600 animate-bounce-in" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-        </svg>
-      ) : (
-        <svg className="w-4 h-4 text-surface-400 group-hover:text-surface-700 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-        </svg>
-      )}
+      <i className={`mdi ${copied ? "mdi-check text-success-600 animate-bounce-in" : "mdi-content-copy text-surface-400 group-hover:text-surface-700"} text-base transition-colors`} />
     </button>
   );
 }
@@ -538,9 +522,7 @@ export default function Home() {
           <div className="flex items-center gap-3">
             {/* Logo */}
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-200">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+              <i className="mdi mdi-robot text-xl text-white" />
             </div>
             <div>
               <h1 className="text-base font-bold text-surface-900 tracking-tight">
@@ -571,24 +553,18 @@ export default function Home() {
                 : "bg-surface-50 border-surface-200 text-surface-600 hover:bg-surface-100"
                 }`}
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-              </svg>
+              <i className="mdi mdi-key-variant text-base" />
               <span className="hidden sm:inline">{apiKey ? "API Key Aktif" : "API Key"}</span>
             </button>
 
             {/* Date & Time */}
             <div className="hidden md:flex items-center gap-2 text-xs text-surface-500">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
+              <i className="mdi mdi-calendar-month text-base text-surface-400" />
               <span>{currentDate}</span>
             </div>
 
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-100/80 text-xs font-mono text-surface-600">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <i className="mdi mdi-clock-outline text-base text-surface-400" />
               {currentTime} <span className="text-surface-400">WIB</span>
             </div>
           </div>
@@ -629,9 +605,7 @@ export default function Home() {
                   >
                     <span>{opt.label}</span>
                     {status === opt.key ? (
-                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                      </svg>
+                      <i className="mdi mdi-check text-base shrink-0" />
                     ) : (
                       <span className="w-3.5 h-3.5 rounded-full border border-surface-300 shrink-0" />
                     )}
@@ -642,9 +616,7 @@ export default function Home() {
               {/* Kemnaker Official Rule Banner for Tidak Hadir Dengan Keterangan */}
               {status === "Tidak Hadir Dengan Keterangan" && (
                 <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-start gap-2.5 animate-slide-up">
-                  <svg className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
+                  <i className="mdi mdi-alert text-base text-amber-600 shrink-0 mt-0.5" />
                   <p className="leading-relaxed">
                     <strong>Ketentuan Monev:</strong> Izin hingga 3 hari per periode dibayar. Izin ke-4 dan seterusnya tidak dibayar, tetapi tidak dihitung untuk peringatan atau pemberhentian akibat ketidakhadiran.
                   </p>
@@ -695,9 +667,7 @@ export default function Home() {
             ) : (
               <section className="bg-white rounded-2xl border border-surface-200 shadow-sm p-5 animate-fade-in space-y-2">
                 <div className="flex items-center gap-2 text-rose-600 text-xs font-bold uppercase tracking-wider">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <i className="mdi mdi-information-outline text-base shrink-0" />
                   Informasi Status Tanpa Keterangan
                 </div>
                 <p className="text-xs text-surface-600 leading-relaxed">
@@ -723,16 +693,12 @@ export default function Home() {
               >
                 {loading ? (
                   <>
-                    <svg className="w-4 h-4 animate-spin shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
+                    <i className="mdi mdi-loading mdi-spin text-base shrink-0" />
                     AI Sedang Menulis...
                   </>
                 ) : (
                   <>
-                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
+                    <i className="mdi mdi-auto-fix text-base shrink-0" />
                     {status === "Tidak Hadir Dengan Keterangan"
                       ? "Generate Alasan Tidak Hadir"
                       : "Generate Laporan Monev"}
@@ -744,9 +710,7 @@ export default function Home() {
             {/* Error message */}
             {error && (
               <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5 animate-slide-up">
-                <svg className="w-4 h-4 text-red-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <i className="mdi mdi-alert-circle text-base text-red-500 shrink-0 mt-0.5" />
                 <div>
                   <p className="font-semibold">Terjadi Kesalahan</p>
                   <p className="mt-0.5 text-red-600">{error}</p>
@@ -763,10 +727,7 @@ export default function Home() {
               <div className="px-5 py-4 border-b border-surface-100 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
+                    <i className="mdi mdi-eye-outline text-base" />
                   </div>
                   <h2 className="text-sm font-bold text-surface-800">
                     Preview Laporan Monev
@@ -786,16 +747,12 @@ export default function Home() {
                     >
                       {copyAllDone ? (
                         <>
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
+                          <i className="mdi mdi-check text-sm" />
                           Tersalin!
                         </>
                       ) : (
                         <>
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
+                          <i className="mdi mdi-content-copy text-sm" />
                           Salin
                         </>
                       )}
@@ -810,9 +767,7 @@ export default function Home() {
                   // Tanpa keterangan view
                   <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
                     <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
-                      <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                      </svg>
+                      <i className="mdi mdi-alert-circle-outline text-3xl" />
                     </div>
                     <div>
                       <p className="text-surface-700 text-sm font-semibold">
@@ -827,9 +782,7 @@ export default function Home() {
                   // Empty state
                   <div className="flex flex-col items-center justify-center h-full py-16 text-center">
                     <div className="w-20 h-20 rounded-2xl bg-surface-100 flex items-center justify-center mb-4">
-                      <svg className="w-10 h-10 text-surface-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
+                      <i className="mdi mdi-file-text-outline text-4xl text-surface-300" />
                     </div>
                     <p className="text-surface-500 text-sm font-medium">Laporan akan muncul di sini</p>
                     <p className="text-surface-400 text-xs mt-1">
@@ -855,11 +808,7 @@ export default function Home() {
                       <ReportSection
                         title="Alasan Tidak Hadir"
                         colorClass="bg-amber-50 text-amber-600"
-                        icon={
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                          </svg>
-                        }
+                        icon={<i className="mdi mdi-alert-circle-outline text-base" />}
                         content={report.alasan_tidak_hadir || ""}
                         onEdit={(val) => setReport({ ...report, alasan_tidak_hadir: val })}
                         placeholder="Alasan tidak hadir minimal 100 karakter..."
@@ -880,33 +829,21 @@ export default function Home() {
                       <ReportSection
                         title="Uraian Aktivitas"
                         colorClass="bg-blue-50 text-blue-600"
-                        icon={
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        }
+                        icon={<i className="mdi mdi-notebook-edit-outline text-base" />}
                         content={report.uraian_aktivitas || ""}
                         onEdit={(val) => setReport({ ...report, uraian_aktivitas: val })}
                       />
                       <ReportSection
                         title="Pembelajaran yang Diperoleh"
                         colorClass="bg-emerald-50 text-emerald-600"
-                        icon={
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                          </svg>
-                        }
+                        icon={<i className="mdi mdi-book-open-variant-outline text-base" />}
                         content={report.pembelajaran || ""}
                         onEdit={(val) => setReport({ ...report, pembelajaran: val })}
                       />
                       <ReportSection
                         title="Kendala yang Dialami"
                         colorClass="bg-amber-50 text-amber-600"
-                        icon={
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                          </svg>
-                        }
+                        icon={<i className="mdi mdi-alert-outline text-base" />}
                         content={report.kendala || ""}
                         onEdit={(val) => setReport({ ...report, kendala: val })}
                       />
@@ -977,9 +914,7 @@ export default function Home() {
               <div className="p-3.5 rounded-xl bg-surface-50 border border-surface-200/80 space-y-2 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-surface-500 flex items-center gap-1.5">
-                    <svg className="w-3.5 h-3.5 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                    <i className="mdi mdi-calendar-today text-sm text-surface-400" />
                     Tanggal Absensi:
                   </span>
                   <span className="font-semibold text-surface-800 font-mono">
@@ -989,9 +924,7 @@ export default function Home() {
 
                 <div className="flex items-center justify-between">
                   <span className="text-surface-500 flex items-center gap-1.5">
-                    <svg className="w-3.5 h-3.5 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    <i className="mdi mdi-account-check-outline text-sm text-surface-400" />
                     Kehadiran:
                   </span>
                   <span className="font-semibold text-surface-800">
@@ -1001,9 +934,7 @@ export default function Home() {
 
                 <div className="flex items-start justify-between text-[11px] text-surface-400 pt-1 border-t border-surface-200/50">
                   <span className="flex items-center gap-1">
-                    <svg className="w-3 h-3 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    <i className="mdi mdi-clock-outline text-sm text-surface-400" />
                     Waktu Server: {currentTime} WIB (GMT+7)
                   </span>
                 </div>
@@ -1027,9 +958,7 @@ export default function Home() {
               {/* Validation warning if fields under 100 chars */}
               {report && !allValid && (
                 <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-start gap-2 animate-fade-in">
-                  <svg className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
+                  <i className="mdi mdi-alert text-base text-amber-500 shrink-0 mt-0.5" />
                   <p>
                     <strong>Perhatian:</strong> Sistem Monev mensyaratkan setiap isian minimal 100 karakter. Lengkapi catatan pada kotak di atas sebelum mengirim.
                   </p>
@@ -1045,13 +974,9 @@ export default function Home() {
                     }`}
                 >
                   {submitResult.ok ? (
-                    <svg className="w-4 h-4 text-green-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
+                    <i className="mdi mdi-check-circle text-base text-green-600 shrink-0 mt-0.5" />
                   ) : (
-                    <svg className="w-4 h-4 text-red-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    <i className="mdi mdi-close-circle text-base text-red-500 shrink-0 mt-0.5" />
                   )}
                   <p className="leading-relaxed">{submitResult.msg}</p>
                 </div>
@@ -1077,9 +1002,7 @@ export default function Home() {
                   {submitLoading ? (
                     <span className="text-center leading-snug">
                       <span className="inline-flex items-center gap-2 align-middle">
-                        <svg className="w-4 h-4 animate-spin shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
+                        <i className="mdi mdi-loading mdi-spin text-base shrink-0" />
                         <span>Mengirim</span>
                       </span>{" "}
                       ke Monev Kemnaker...
@@ -1087,9 +1010,7 @@ export default function Home() {
                   ) : !kemnakerToken ? (
                     <span className="text-center leading-snug">
                       <span className="inline-flex items-center gap-2 align-middle">
-                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                        </svg>
+                        <i className="mdi mdi-login text-base shrink-0" />
                         <span>Hubungkan</span>
                       </span>{" "}
                       Akun Kemnaker untuk Mengirim
@@ -1097,9 +1018,7 @@ export default function Home() {
                   ) : (
                     <span className="text-center leading-snug">
                       <span className="inline-flex items-center gap-2 align-middle">
-                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                        </svg>
+                        <i className="mdi mdi-send text-base shrink-0" />
                         <span>Simpan</span>
                       </span>{" "}
                       dan Kirim ke Monev
@@ -1149,9 +1068,7 @@ export default function Home() {
                 onClick={() => setShowApiKeyModal(false)}
                 className="p-1 rounded-lg hover:bg-surface-100 transition-colors cursor-pointer"
               >
-                <svg className="w-5 h-5 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <i className="mdi mdi-close text-xl text-surface-400" />
               </button>
             </div>
 
@@ -1173,9 +1090,7 @@ export default function Home() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs text-accent-600 hover:text-accent-700 transition-colors"
               >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
+                <i className="mdi mdi-open-in-new text-xs" />
                 Dapatkan API Key di Google AI Studio
               </a>
             </div>
@@ -1213,9 +1128,7 @@ export default function Home() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-accent-50 text-accent-600 flex items-center justify-center border border-accent-100">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
+                  <i className="mdi mdi-account-lock-outline text-xl" />
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-surface-800">
@@ -1232,9 +1145,7 @@ export default function Home() {
                 disabled={kemnakerLoginLoading}
                 className="p-1 rounded-lg hover:bg-surface-100 transition-colors text-surface-400 cursor-pointer disabled:opacity-30"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <i className="mdi mdi-close text-xl text-surface-400" />
               </button>
             </div>
 
@@ -1277,25 +1188,14 @@ export default function Home() {
                     onClick={() => setShowKemnakerPassword(!showKemnakerPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 cursor-pointer"
                   >
-                    {showKemnakerPassword ? (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
-                      </svg>
-                    ) : (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    )}
+                    <i className={`mdi ${showKemnakerPassword ? "mdi-eye-off-outline" : "mdi-eye-outline"} text-base`} />
                   </button>
                 </div>
               </div>
 
               {/* Security statement box */}
               <div className="p-3 rounded-xl bg-surface-50 border border-surface-200/70 text-[11px] text-surface-500 flex items-start gap-2">
-                <svg className="w-4 h-4 text-accent-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
+                <i className="mdi mdi-shield-check-outline text-base text-accent-500 shrink-0 mt-0.5" />
                 <span>
                   Kredensial Anda aman dan hanya diproses langsung untuk mendapatkan sesi otorisasi ke server Kemnaker.
                 </span>
@@ -1304,9 +1204,7 @@ export default function Home() {
               {/* Error message */}
               {kemnakerLoginError && (
                 <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2">
-                  <svg className="w-4 h-4 text-red-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <i className="mdi mdi-alert-circle text-base text-red-500 shrink-0 mt-0.5" />
                   <p>{kemnakerLoginError}</p>
                 </div>
               )}
@@ -1328,9 +1226,7 @@ export default function Home() {
                 >
                   {kemnakerLoginLoading ? (
                     <>
-                      <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
+                      <i className="mdi mdi-loading mdi-spin text-base" />
                       Menghubungkan...
                     </>
                   ) : (
