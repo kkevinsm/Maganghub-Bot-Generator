@@ -382,8 +382,8 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
         user.draftReport.status === "PRESENT"
           ? "Hadir"
           : user.draftReport.status === "ON_LEAVE"
-          ? "Tidak Hadir Dengan Keterangan"
-          : "Tidak Hadir Tanpa Keterangan";
+            ? "Tidak Hadir Dengan Keterangan"
+            : "Tidak Hadir Tanpa Keterangan";
       draftStatus = `\n\n📝 *Draft Tersimpan*: ${statusLabel} (Siap dikirim)`;
     }
 
@@ -392,8 +392,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
 
     return telegram.sendMessage(
       chatId,
-      `📊 *Status Bot Mobogen*\n\n👤 Nama: *${user.name || "Peserta"}*\n💼 Posisi: ${currentRole.icon} *${currentRole.name}*\n🔗 Akun Kemnaker: ${
-        hasAccount ? `✅ Terhubung (${emailDecrypted})` : "❌ Belum login"
+      `📊 *Status Bot Mobogen*\n\n👤 Nama: *${user.name || "Peserta"}*\n💼 Posisi: ${currentRole.icon} *${currentRole.name}*\n🔗 Akun Kemnaker: ${hasAccount ? `✅ Terhubung (${emailDecrypted})` : "❌ Belum login"
       }\n🔑 Gemini AI Key: *${apiKeyStatus}*\n⏰ Pengingat Sore (16:30 WIB): *${reminderStatus}*\n📅 Tanggal Hari Ini: *${getTodayDateString()}*${draftStatus}`,
       {
         reply_markup: {
@@ -801,8 +800,8 @@ async function handleConfirmSubmit(user: UserAccount, messageId?: number) {
       draft.status === "PRESENT"
         ? draft.uraian_aktivitas
         : draft.status === "ON_LEAVE"
-        ? draft.alasan_tidak_hadir
-        : undefined,
+          ? draft.alasan_tidak_hadir
+          : undefined,
     lesson_learned: draft.status === "PRESENT" ? draft.pembelajaran : undefined,
     obstacles: draft.status === "PRESENT" ? draft.kendala : undefined,
     leave_reason: draft.status === "ON_LEAVE" ? draft.alasan_tidak_hadir : undefined,
@@ -821,8 +820,8 @@ async function handleConfirmSubmit(user: UserAccount, messageId?: number) {
     draft.status === "PRESENT"
       ? "Hadir (PRESENT)"
       : draft.status === "ON_LEAVE"
-      ? "Tidak Hadir Dengan Keterangan (ON_LEAVE)"
-      : "Tidak Hadir Tanpa Keterangan (ABSENT)";
+        ? "Tidak Hadir Dengan Keterangan (ON_LEAVE)"
+        : "Tidak Hadir Tanpa Keterangan (ABSENT)";
 
   // Success! Clear draft
   user.draftReport = null;
@@ -831,7 +830,7 @@ async function handleConfirmSubmit(user: UserAccount, messageId?: number) {
 
   return telegram.sendMessage(
     user.chatId,
-    `🎉 *ALHAMDULILLAH, PRESENSI BERHASIL DIKIRIM!* ✅\n\n📅 Tanggal: *${draft.date}*\n📌 Status: *${statusTitle}*\n\nLaporan Monev harian Anda telah tercatat resmi di sistem MagangHub Kemnaker. Sampai jumpa besok! 👋✨`
+    `🎉 *PRESENSI BERHASIL DIKIRIM!* ✅\n\n📅 Tanggal: *${draft.date}*\n📌 Status: *${statusTitle}*\n\nLaporan Monev harian Anda telah tercatat resmi di sistem MagangHub Kemnaker. Sampai jumpa besok! 👋✨`
   );
 }
 
@@ -879,59 +878,57 @@ function sendRoleSuggestionsMenu(user: UserAccount) {
 }
 
 function sendHelpMenu(user: UserAccount) {
+  // Sync native Telegram commands popup menu
+  telegram.setMyCommands().catch(() => null);
+
   const hasAccount = Boolean(user.username && user.password);
   const statusIcon = hasAccount ? "✅ Terhubung" : "❌ Belum Terhubung";
   const hasKey = Boolean(user.geminiApiKey || process.env.GEMINI_API_KEY);
   const keyIcon = hasKey ? "✅ Terpasang" : "⚠️ Belum Diset";
   const currentRole = ROLES[user.role || "general"] || ROLES.general;
 
-  const message = `🤖 *BANTUAN & PANDUAN MOBOGEN TELEGRAM BOT*
+  const message = `🤖 *SELAMAT DATANG DI MOBOGEN BOT!* 👋
+Asisten Laporan Harian Monev MagangHub Kemnaker berbasis AI.
 
-Status Akun: *${statusIcon}*
-Gemini API Key: *${keyIcon}*
-Posisi: ${currentRole.icon} *${currentRole.name}*
+📋 *DAFTAR PERINTAH (COMMANDS):*
+🔹 \`/start\` / \`/help\` : Tampilkan menu & daftar perintah ini
+🔹 \`/login\` : Hubungkan akun SIAPkerja Kemnaker Anda
+🔹 \`/hadir <kegiatan>\` : Absen hadir (AI buat 3 bagian laporan)
+🔹 \`/izin <alasan>\` : Absen izin / sakit dengan alasan
+🔹 \`/alpha\` : Absen tidak hadir tanpa keterangan
+🔹 \`/status\` : Cek status akun, API key, & draft tersimpan
+🔹 \`/apikey <KEY>\` : Masukkan Gemini API Key gratis
+🔹 \`/role\` : Pilih posisi magang (Frontend, UI/UX, Data, dll)
+🔹 \`/ide\` : Dapatkan rekomendasi ide kegiatan harian
+🔹 \`/reminder on/off\` : Atur notifikasi pengingat sore (16:30 WIB)
+🔹 \`/logout\` : Hapus data akun dari bot
 
-*3 Macam Opsi Presensi Monev:*
-1️⃣ *Hadir (PRESENT)*:
-Kirimkan poin kegiatan Anda ke chat (atau ketik \`/hadir <poin>\`). AI akan menyusun 3 bagian narasi formal (Uraian, Pembelajaran, Kendala minimal 100 karakter).
+───────────────
+📌 *Status Anda*:
+• Akun Kemnaker: *${statusIcon}*
+• Gemini API Key: *${keyIcon}*
+• Posisi Magang: ${currentRole.icon} *${currentRole.name}*
 
-2️⃣ *Tidak Hadir Dengan Keterangan (ON_LEAVE)*:
-Ketik \`/izin <alasan>\` (misal: \`/izin Sakit demam berobat ke dokter\`). AI akan menyusun narasi keterangan izin resmi.
-
-3️⃣ *Tidak Hadir Tanpa Keterangan (ABSENT)*:
-Ketik \`/alpha\` atau klik tombol presensi tanpa keterangan di bawah.
-
-*Daftar Perintah:*
-- \`/login\` : Menghubungkan akun SIAPkerja Kemnaker
-- \`/apikey <KEY>\` : Memasukkan Gemini API Key Anda (Gratis)
-- \`/status\` : Cek status akun, API key, & draft aktif
-- \`/role\` : Memilih posisi magang (Frontend, UI/UX, Data, dll)
-- \`/ide\` : Menampilkan rekomendasi kegiatan harian
-- \`/hadir <kegiatan>\` : Absen hadir
-- \`/izin <alasan>\` : Absen izin tidak hadir
-- \`/alpha\` : Absen tidak hadir tanpa keterangan
-- \`/reminder on\` / \`off\` : Pengaturan notifikasi sore
-- \`/logout\` : Menghapus data akun dari bot
-- \`/help\` : Menampilkan panduan ini`;
+👇 *Klik tombol di bawah untuk akses cepat:*`;
 
   return telegram.sendMessage(user.chatId, message, {
     reply_markup: {
       inline_keyboard: hasAccount
         ? [
-            [{ text: "🟢 1. Absen Hadir", callback_data: "MENU_HADIR" }],
-            [{ text: "🟡 2. Izin (Dengan Keterangan)", callback_data: "MENU_IZIN" }],
-            [{ text: "🔴 3. Tanpa Keterangan (Alpha)", callback_data: "MENU_ABSENT" }],
-            [{ text: "✏️ Buka Editor Interaktif", web_app: { url: `${getAppBaseUrl()}/editor?chatId=${user.chatId}` } }],
-            [
-              { text: "🔑 Atur Gemini API Key", callback_data: "BTN_SET_APIKEY" },
-              { text: "💡 Ide Kegiatan", callback_data: "SUGGEST_IDEAS" },
-            ],
-            [{ text: "💼 Ganti Posisi", callback_data: "SHOW_ROLES" }],
-          ]
-        : [
-            [{ text: "🔐 Hubungkan Akun Sekarang", callback_data: "BTN_LOGIN" }],
-            [{ text: "🔑 Masukkan Gemini API Key", callback_data: "BTN_SET_APIKEY" }],
+          [{ text: "🟢 1. Absen Hadir", callback_data: "MENU_HADIR" }],
+          [{ text: "🟡 2. Izin (Dengan Keterangan)", callback_data: "MENU_IZIN" }],
+          [{ text: "🔴 3. Tanpa Keterangan (Alpha)", callback_data: "MENU_ABSENT" }],
+          [{ text: "✏️ Buka Editor Interaktif", web_app: { url: `${getAppBaseUrl()}/editor?chatId=${user.chatId}` } }],
+          [
+            { text: "🔑 Atur Gemini API Key", callback_data: "BTN_SET_APIKEY" },
+            { text: "💡 Ide Kegiatan", callback_data: "SUGGEST_IDEAS" },
           ],
+          [{ text: "💼 Ganti Posisi", callback_data: "SHOW_ROLES" }],
+        ]
+        : [
+          [{ text: "🔐 Hubungkan Akun Sekarang", callback_data: "BTN_LOGIN" }],
+          [{ text: "🔑 Masukkan Gemini API Key", callback_data: "BTN_SET_APIKEY" }],
+        ],
     },
   });
 }

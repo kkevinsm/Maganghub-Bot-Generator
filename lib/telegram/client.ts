@@ -139,6 +139,38 @@ export class TelegramClient {
       // Ignore callback query response error
     }
   }
+
+  /**
+   * Mengeset daftar perintah resmi di tombol menu Telegram (popup / menu)
+   */
+  async setMyCommands(): Promise<boolean> {
+    if (!this.isConfigured()) return false;
+    try {
+      const response = await fetch(`${this.getBaseUrl()}/setMyCommands`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          commands: [
+            { command: "start", description: "Buka menu utama & daftar perintah" },
+            { command: "login", description: "Hubungkan akun SIAPkerja Kemnaker" },
+            { command: "hadir", description: "Absen hadir harian" },
+            { command: "izin", description: "Absen izin / sakit dengan keterangan" },
+            { command: "alpha", description: "Absen tidak hadir tanpa keterangan" },
+            { command: "status", description: "Cek status akun, API key, & draft" },
+            { command: "apikey", description: "Masukkan Gemini API Key gratis" },
+            { command: "role", description: "Pilih posisi magang (Frontend, UI/UX, dll)" },
+            { command: "ide", description: "Dapatkan rekomendasi ide kegiatan" },
+            { command: "reminder", description: "Pengaturan pengingat sore" },
+            { command: "logout", description: "Hapus data akun dari bot" },
+            { command: "help", description: "Panduan lengkap penggunaan bot" },
+          ],
+        }),
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
 }
 
 export const telegram = new TelegramClient();
