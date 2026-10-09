@@ -315,23 +315,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     );
   }
 
-  // Smart Auto-Detect Email / Username saat user belum login
-  const isEmailOrUser =
-    lowerText.includes("@") ||
-    /^[0-9]{10,16}$/.test(lowerText) ||
-    user.step === "awaiting_login_email";
-
-  if (!user.username && isEmailOrUser && !lowerText.startsWith("/")) {
-    user.tempLoginEmail = rawText;
-    user.step = "awaiting_login_password";
-    saveUser(user);
-    return telegram.sendMessage(
-      chatId,
-      `🔑 Email *${rawText}* diterima!\n\nSekarang, silakan masukkan *Password* akun SIAPkerja Kemnaker Anda:\n_(Password dienkripsi aman secara otomatis)_`
-    );
-  }
-
-  // Multi-step Login: Menunggu Password
+  // 1. Step Handler: Menunggu Password (Diproses PERTAMA agar password dengan karakter '@' tidak salah terdeteksi sebagai email)
   if (user.step === "awaiting_login_password" || (user.tempLoginEmail && !user.username && !lowerText.startsWith("/"))) {
     const email = user.tempLoginEmail || "";
     const password = rawText;
@@ -387,6 +371,20 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
           ],
         },
       }
+    );
+  }
+
+  // 2. Step Handler: Menunggu Email / Username
+  const isEmailFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawText);
+  const isPhoneOrNik = /^[0-9]{10,16}$/.test(rawText);
+
+  if (!user.username && (isEmailFormat || isPhoneOrNik || user.step === "awaiting_login_email") && !lowerText.startsWith("/")) {
+    user.tempLoginEmail = rawText;
+    user.step = "awaiting_login_password";
+    saveUser(user);
+    return telegram.sendMessage(
+      chatId,
+      `🔑 Email *${rawText}* diterima!\n\nSekarang, silakan masukkan *Password* akun SIAPkerja Kemnaker Anda:\n_(Password dienkripsi aman secara otomatis)_`
     );
   }
 
